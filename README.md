@@ -10,26 +10,6 @@ This was cross-checked against MCNS (whose classifier does include histamine): R
 
 ![Histamine blindspot](figures/histamine_blindspot.png)
 
-## Structure
-
-```
-.
-├── merge_data.py                    # Merges 3 raw FAFB Codex downloads into one table
-├── normalize_mcns.py                # Normalizes MCNS's Neuron Attributes file to the same schema
-├── analysis.py                      # Entropy, stratified permutation null, plots
-├── histamine_pattern_check.py       # Cross-dataset check: does the R7/R8 pattern generalize?
-├── results/
-│   ├── entropy_raw.csv                       # FAFB: raw entropy per cell type
-│   ├── entropy_corrected.csv                 # FAFB: size-corrected z-scores per cell type
-│   ├── confirmed_histaminergic_in_fafb.csv    # FAFB entropy for the 4 confirmed-histaminergic types
-│   └── confirmed_histaminergic_summary.csv    # Same, condensed summary table
-├── figures/
-│   ├── entropy_distribution.png
-│   ├── zscore_distribution.png
-│   ├── entropy_vs_size.png
-│   └── histamine_blindspot.png       # FAFB entropy histogram vs. the 4 confirmed types
-└── data/                              # Not tracked in git -- see below
-```
 
 ## Reproducing
 
