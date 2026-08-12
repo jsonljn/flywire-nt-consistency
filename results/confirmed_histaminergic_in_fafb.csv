@@ -1,0 +1,4 @@
+cell_type,n_neurons,n_nt_types,entropy,dominant_nt,dominant_frac,nt_distribution
+R7,474,6,1.6248866708525729,GLUT,0.4409282700421941,"{'GLUT': np.int64(209), 'GABA': np.int64(184), 'ACH': np.int64(69), 'OCT': np.int64(7), 'DA': np.int64(3), 'SER': np.int64(2)}"
+R8,475,5,1.3756291741423423,ACH,0.5789473684210527,"{'ACH': np.int64(275), 'GLUT': np.int64(152), 'GABA': np.int64(43), 'SER': np.int64(3), 'OCT': np.int64(2)}"
+Lai,140,4,1.238858362226506,GABA,0.5,"{'GABA': np.int64(70), 'ACH': np.int64(64), 'GLUT': np.int64(5), 'DA': np.int64(1)}"

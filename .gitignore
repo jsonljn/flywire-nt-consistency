@@ -1,0 +1,11 @@
+# Raw and merged annotation data — large, easily re-downloaded from Codex.
+# See README.md for exact download + reproduce instructions.
+data/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS
+.DS_Store

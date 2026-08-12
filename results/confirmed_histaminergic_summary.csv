@@ -1,0 +1,5 @@
+cell_type,n_labeled,n_total,entropy,dominant_nt,dominant_frac
+R7,474,1338,1.625,GLUT,0.441
+R8,475,1357,1.376,ACH,0.579
+Lai,140,140,1.239,GABA,0.5
+R1-6,4090,8456,0.853,ACH,0.819

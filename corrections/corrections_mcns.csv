@@ -1,0 +1,5 @@
+root_id,cell_type,matched_fafb_type,current_predicted_nt,verified_nt,evidence_source,evidence_confidence,pattern,proposed_action
+11340,ExR7,R7,ACH,HIST,"Davis et al., 2020",4.0,categorical_blindspot_HIST,"Review for relabel: classifier predicted ACH, literature verifies HIST (source: Davis et al., 2020, confidence 4.0/5)"
+20233,ExR7,R7,ACH,HIST,"Davis et al., 2020",4.0,categorical_blindspot_HIST,"Review for relabel: classifier predicted ACH, literature verifies HIST (source: Davis et al., 2020, confidence 4.0/5)"
+522972,ExR7,R7,ACH,HIST,"Davis et al., 2020",4.0,categorical_blindspot_HIST,"Review for relabel: classifier predicted ACH, literature verifies HIST (source: Davis et al., 2020, confidence 4.0/5)"
+522991,ExR7,R7,ACH,HIST,"Davis et al., 2020",4.0,categorical_blindspot_HIST,"Review for relabel: classifier predicted ACH, literature verifies HIST (source: Davis et al., 2020, confidence 4.0/5)"
