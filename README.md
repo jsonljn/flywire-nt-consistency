@@ -124,7 +124,7 @@ Caveat: MCNS's own predictions are also a classifier output, not ground truth fr
 
 ## Deliverable: correction lists validated against literature ground truth
 
-Following team guidance, every candidate above was cross-checked against the literature-curated ground truth database ([flyconnectome/drosophila_neurotransmitters](https://github.com/flyconnectome/drosophila_neurotransmitters), `gt_data.csv`), which links cell types to verified neurotransmitters from published sources with confidence scores. This is authoritative in a way MCNS's predictions are not, since MCNS's classifier can itself be wrong.
+Every candidate above was cross-checked against the literature-curated ground truth database ([flyconnectome/drosophila_neurotransmitters](https://github.com/flyconnectome/drosophila_neurotransmitters), `gt_data.csv`), which links cell types to verified neurotransmitters from published sources with confidence scores. This is authoritative in a way MCNS's predictions are not, since MCNS's classifier can itself be wrong.
 
 **Cell type name matching.** Different datasets name the same cell type differently (e.g. FAFB's `R1-6` vs. MCNS's `R1-R6`). `name_matching.py` handles this safely: exact case/whitespace-insensitive matches, plus an explicit range-notation normalizer for the `X1-6` / `X1-X6` pattern. Anything that isn't a safe match is left unmatched rather than guessed at, since a wrong automated match could produce a wrong correction. R7/R8's split into MCNS subtypes (`R7y`, `R7p`, `R7d`, etc.) is handled as an explicit, documented aggregation rather than a generic prefix rule, to avoid incorrectly conflating e.g. `Dm1` with `Dm12`/`Dm19`.
 
@@ -149,21 +149,6 @@ R8 is confirmed as a genuine co-transmitter (ACH **and** histamine both verified
 
 `corrections/excluded_unconfirmed_candidates.csv` lists the 5 excluded/unconfirmed types for transparency, so nothing is silently dropped.
 
-## Status / next steps
-
-- [x] FAFB entropy analysis with size-corrected null
-- [x] MCNS cross-dataset comparison
-- [x] Traced R7/R8 outlier signal to a documented FAFB classifier limitation (no histamine category)
-- [x] Validated the explanation against 4 independently confirmed histaminergic cell types
-- [x] Scanned all 402 FAFB cell types against MCNS for additional histamine-blind-spot candidates (`full_histamine_scan.py`, `results/full_cross_dataset_scan.csv`) -- confirms R7, R8, Lai, R1-6 are the complete set found by this method; 246/402 FAFB types had any MCNS name match; one additional candidate (T1) was excluded for insufficient MCNS sample size (n=1)
-- [x] Connectivity comparison for R7 and R8: tested whether the classifier's wrong-category guess correlates with real connectivity structure. R7 shows significant structure (p < 0.0005); R8 does not (p = 0.095)
-- [x] Sensitivity check at n>=10 (702 cell types): surfaced two additional systematic confusion patterns (ORN serotonin confusion, Dm glutamate confusion) beyond the histamine blind spot
-- [x] Cross-referenced all flagged candidates against the literature-curated ground-truth NT database (`flyconnectome/drosophila_neurotransmitters`) -- confirmed 15, excluded 1 (Lai, contradicted), left 4 unconfirmed
-- [x] Built robust cell-type name matching handling FAFB/MCNS naming differences (e.g. R1-6 vs R1-R6), per team guidance
-- [x] Produced final deliverable: per-dataset, per-neuron correction lists with literature citations and confidence scores (`corrections/corrections_fafb.csv`, `corrections/corrections_mcns.csv`)
-- [ ] Add MANC as a third cross-dataset check where applicable (note: MANC is nerve-cord only, so it won't contain R7/R8/Lai/R1-6, but may still be useful for other cell types)
-- [ ] Investigate the 4 unconfirmed Dm types (Dm16, Dm20, Dm6, Dm9) further -- no literature match found yet, may need a different ground-truth source or direct follow-up
-- [ ] Write final report and presentation
 
 ## Data source
 
