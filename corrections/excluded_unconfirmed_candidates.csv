@@ -1,0 +1,6 @@
+fafb_cell_type,pattern,fafb_dominant_nt_wrong,mcns_says,gt_matched_name,gt_match_method,gt_verified_present,gt_verified_absent,gt_confidence,gt_sources,literature_status,literature_verified_nt,agrees_with_literature
+Lai,categorical_blindspot_HIST,GABA,HIST,Lai,exact_case_insensitive,{'GLUT'},"{'ACH', 'GABA'}",4.0,"Davis et al., 2020",matched_with_verified_nt,GLUT,False
+Dm16,Dm_GLUT_confusion,GABA,GLUT,,,,,,,no_match_found,,
+Dm20,Dm_GLUT_confusion,GABA,GLUT,,,,,,,no_match_found,,
+Dm6,Dm_GLUT_confusion,GABA,GLUT,,,,,,,no_match_found,,
+Dm9,Dm_GLUT_confusion,ACH,GLUT,,,,,,,no_match_found,,
