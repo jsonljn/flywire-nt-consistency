@@ -30,6 +30,9 @@ CONFIRMED_HISTAMINERGIC = RESULTS / "confirmed_histaminergic_in_fafb.csv"
 CONFIRMED_HISTAMINERGIC_SUMMARY = RESULTS / "confirmed_histaminergic_summary.csv"
 CONNECTIVITY_SUMMARY = RESULTS / "connectivity_test_summary.csv"
 VALIDATION_REPORT = RESULTS / "validation_report.txt"
+SIGNATURE_SCAN = RESULTS / "signature_scan.csv"
+SIGNATURE_SCAN_NOVEL = RESULTS / "signature_scan_novel.csv"
+SIGNATURE_SCAN_SUMMARY = RESULTS / "signature_scan_summary.csv"
 
 
 def entropy_paths(min_members: int = 20) -> tuple[Path, Path]:

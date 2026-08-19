@@ -41,6 +41,7 @@ def main() -> None:
         for script in (
             "plot_histamine_blindspot.py",
             "plot_patterns.py",
+            "plot_signature_scan.py",
             "connectivity_plots.py",
         ):
             run_step(f"Plot: {script}", script)
@@ -77,6 +78,9 @@ def main() -> None:
         run_step("General MCNS scan (n>=10)", "general_scan_n10.py")
         run_step("Three patterns summary", "three_patterns_summary.py")
 
+    if (ROOT / "results" / "entropy_raw.csv").exists() or (ROOT / "results" / "entropy_raw_n10.csv").exists():
+        run_step("Confusion signature scan", "signature_scan.py")
+
     # Literature validation + corrections
     if (ROOT / "data" / "gt_data.csv").exists() and (ROOT / "results" / "three_confusion_patterns.csv").exists():
         run_step("Literature validation", "validate_against_literature.py")
@@ -90,9 +94,12 @@ def main() -> None:
         run_step("Connectivity PCA plots", "connectivity_plots.py")
 
     # Figures + validation
-    run_step("Histamine blindspot figure", "plot_histamine_blindspot.py")
+    if (ROOT / "results" / "entropy_raw.csv").exists() or (ROOT / "results" / "entropy_raw_n10.csv").exists():
+        run_step("Histamine blindspot figure", "plot_histamine_blindspot.py")
     if (ROOT / "results" / "three_confusion_patterns.csv").exists():
         run_step("Pattern summary figures", "plot_patterns.py")
+    if (ROOT / "results" / "signature_scan.csv").exists():
+        run_step("Signature scan figures", "plot_signature_scan.py")
     run_step("Validate README claims", "validate_results.py")
 
     print("\n" + "=" * 70)

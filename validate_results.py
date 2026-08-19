@@ -17,6 +17,7 @@ from paths import (
     ENTROPY_RAW,
     LITERATURE_VALIDATED,
     RESULTS,
+    SIGNATURE_SCAN,
     THREE_PATTERNS,
     VALIDATION_REPORT,
     ensure_output_dirs,
@@ -124,7 +125,23 @@ if CONNECTIVITY_SUMMARY.exists():
     check("R7 connectivity p < 0.001", r7["p_value"] < 0.001, f"p={r7['p_value']}")
     check("R8 connectivity p ~ 0.095", 0.05 < r8["p_value"] < 0.15, f"p={r8['p_value']}")
 
-# ── Confirmed histaminergic summary ──
+# ── Signature scan ──
+if SIGNATURE_SCAN.exists():
+    ss = pd.read_csv(SIGNATURE_SCAN)
+    r16 = ss[ss["cell_type"] == "R1-6"]
+    check("Signature scan includes R1-6", len(r16) == 1)
+    if len(r16):
+        check(
+            "R1-6 assigned to histamine neighborhood",
+            r16.iloc[0]["best_pattern"] == "histamine_blindspot",
+            f"got {r16.iloc[0]['best_pattern']}",
+        )
+    seeds = ss[ss["cell_type"].isin(["R7", "R8", "R1-6"])]
+    check(
+        "Photoreceptor seeds recovered in histamine neighborhood",
+        len(seeds) == 3 and bool(seeds["in_neighborhood"].all()),
+        f"n={len(seeds)} in_neighborhood={list(seeds['in_neighborhood']) if len(seeds) else []}",
+    )
 if CONFIRMED_HISTAMINERGIC_SUMMARY.exists():
     ch = pd.read_csv(CONFIRMED_HISTAMINERGIC_SUMMARY)
     check("4 confirmed histaminergic types", len(ch) == 4, f"got {len(ch)}")

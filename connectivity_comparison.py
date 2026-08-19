@@ -23,7 +23,6 @@ type is subject to the histamine blind spot" flag.
 """
 import pandas as pd
 import numpy as np
-from collections import defaultdict
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
@@ -82,20 +81,22 @@ def build_connectivity_profiles(cell_type_name, top_k=TOP_K_PARTNERS):
     print(f"  Top {len(top_partners)} partner types cover "
           f"{partner_weight.head(top_k).sum() / partner_weight.sum():.1%} of output weight")
 
-    # Build profile matrix: one row per neuron, one column per top partner type
-    profiles = defaultdict(lambda: np.zeros(len(top_partners)))
-    partner_idx = {p: i for i, p in enumerate(top_partners)}
-
-    for _, row in out_edges.iterrows():
-        if row['post_type'] in partner_idx:
-            profiles[row['pre_root_id']][partner_idx[row['post_type']]] += row['syn_count']
-
-    # Only keep neurons that actually have output edges to typed partners
-    valid_ids = [nid for nid in neurons['root_id'] if nid in profiles and profiles[nid].sum() > 0]
+    typed = out_edges[out_edges["post_type"].isin(top_partners)]
+    pivot = typed.pivot_table(
+        index="pre_root_id",
+        columns="post_type",
+        values="syn_count",
+        aggfunc="sum",
+        fill_value=0,
+    )
+    pivot = pivot.reindex(columns=top_partners, fill_value=0)
+    valid_ids = [nid for nid in pivot.index.tolist() if pivot.loc[nid].sum() > 0]
+    pivot = pivot.loc[valid_ids]
     print(f"  Neurons with usable connectivity profile: {len(valid_ids)}")
 
-    X = np.array([profiles[nid] / profiles[nid].sum() for nid in valid_ids])  # normalize per neuron
-    labels = neurons.set_index('root_id').loc[valid_ids, 'nt_type'].values
+    X = pivot.to_numpy(dtype=float)
+    X = X / X.sum(axis=1, keepdims=True)
+    labels = neurons.set_index("root_id").loc[valid_ids, "nt_type"].values
 
     return X, labels, valid_ids, top_partners
 
@@ -131,7 +132,7 @@ def within_vs_between_test(X, labels, n_permutations=N_PERMUTATIONS, seed=RANDOM
         null_diffs.append(null_within - null_between)
 
     null_diffs = np.array(null_diffs)
-    p_value = (null_diffs >= observed_diff).mean()
+    p_value = (np.sum(null_diffs >= observed_diff) + 1) / (len(null_diffs) + 1)
 
     return {
         'observed_within_sim': observed_within,
