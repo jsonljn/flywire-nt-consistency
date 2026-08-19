@@ -4,8 +4,10 @@ can be reused without modification.
 """
 import pandas as pd
 
+from paths import DATA_MCNS, MCNS_MERGED
+
 print("Loading MCNS neurons.csv...")
-df = pd.read_csv('data_mcns/neurons.csv')
+df = pd.read_csv(DATA_MCNS / "neurons.csv")
 print(f"Shape: {df.shape}")
 print(f"Original columns: {list(df.columns)}")
 
@@ -39,5 +41,5 @@ print(df['nt_type'].value_counts())
 print(f"\nSample primary_type values:")
 print(df['primary_type'].dropna().head(10).tolist())
 
-df.to_csv('data_mcns/merged_annotations.csv', index=False)
-print("\nSaved data_mcns/merged_annotations.csv")
+df.to_csv(MCNS_MERGED, index=False)
+print(f"\nSaved {MCNS_MERGED}")

@@ -11,13 +11,12 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import warnings
 
+from nt_simplex import entropy_from_count_matrix
 from paths import FIGURES, ensure_output_dirs, entropy_paths
 
 warnings.filterwarnings("ignore")
@@ -153,41 +152,48 @@ def stratified_permutation_null(
     rng = np.random.default_rng(seed)
 
     eligible = df.groupby(cell_type_col).filter(lambda x: len(x) >= min_members)
-    nt_labels = eligible[nt_col].values.copy()
-    sizes = eligible.groupby(cell_type_col).size().to_dict()
+    type_codes, type_names = pd.factorize(eligible[cell_type_col], sort=False)
+    nt_codes, _nt_names = pd.factorize(eligible[nt_col].astype(str), sort=False)
+    n_types = len(type_names)
+    n_nt = len(_nt_names)
+    sizes = np.bincount(type_codes, minlength=n_types)
 
-    observed = {}
-    for ct, group in eligible.groupby(cell_type_col):
-        observed[ct] = shannon_entropy(group[nt_col].value_counts().values)
+    observed_counts = np.zeros((n_types, n_nt), dtype=np.int64)
+    np.add.at(observed_counts, (type_codes, nt_codes), 1)
+    observed = entropy_from_count_matrix(observed_counts)
 
-    null_entropies = {ct: [] for ct in observed}
+    null_sum = np.zeros(n_types, dtype=np.float64)
+    null_sumsq = np.zeros(n_types, dtype=np.float64)
+    null_ge = np.zeros(n_types, dtype=np.int64)
 
     for _ in range(n_permutations):
-        shuffled = rng.permutation(nt_labels)
-        cursor = 0
-        for ct, size in sizes.items():
-            chunk = shuffled[cursor : cursor + size]
-            counts = np.array(list(Counter(chunk).values()))
-            null_entropies[ct].append(shannon_entropy(counts))
-            cursor += size
+        shuffled = rng.permutation(nt_codes)
+        counts = np.zeros((n_types, n_nt), dtype=np.int64)
+        np.add.at(counts, (type_codes, shuffled), 1)
+        ent = entropy_from_count_matrix(counts)
+        null_sum += ent
+        null_sumsq += ent * ent
+        null_ge += (ent >= observed - 1e-12).astype(np.int64)
+
+    mean_null = null_sum / n_permutations
+    var_null = np.maximum(null_sumsq / n_permutations - mean_null ** 2, 0.0)
+    std_null = np.sqrt(var_null)
+    z = np.zeros(n_types, dtype=np.float64)
+    positive_std = std_null > 0
+    z[positive_std] = (observed[positive_std] - mean_null[positive_std]) / std_null[positive_std]
+    # (k+1)/(n+1) avoids zero p-values under permutation
+    p_values = (null_ge + 1) / (n_permutations + 1)
 
     results = []
-    for ct in observed:
-        null = np.array(null_entropies[ct])
-        obs = observed[ct]
-        mean_null = null.mean()
-        std_null = null.std()
-        z = (obs - mean_null) / std_null if std_null > 0 else 0.0
-        # (k+1)/(n+1) avoids zero p-values under permutation
-        p_value = (np.sum(null >= obs) + 1) / (len(null) + 1)
+    for i, ct in enumerate(type_names):
         results.append({
             "cell_type": ct,
-            "n_neurons": sizes[ct],
-            "entropy": obs,
-            "mean_null_entropy": mean_null,
-            "std_null_entropy": std_null,
-            "z_score": z,
-            "p_value": p_value,
+            "n_neurons": int(sizes[i]),
+            "entropy": float(observed[i]),
+            "mean_null_entropy": float(mean_null[i]),
+            "std_null_entropy": float(std_null[i]),
+            "z_score": float(z[i]),
+            "p_value": float(p_values[i]),
         })
 
     df_null = pd.DataFrame(results)

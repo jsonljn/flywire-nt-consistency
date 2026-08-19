@@ -1,9 +1,11 @@
 import pandas as pd
 
+from paths import DATA, FAFB_MERGED
+
 print("Loading files...")
-neurons = pd.read_csv('data/neurons.csv')
-cell_types = pd.read_csv('data/cell_types.csv')
-classification = pd.read_csv('data/classification.csv')
+neurons = pd.read_csv(DATA / "neurons.csv")
+cell_types = pd.read_csv(DATA / "cell_types.csv")
+classification = pd.read_csv(DATA / "classification.csv")
 
 print(f"neurons: {neurons.shape}")
 print(f"cell_types: {cell_types.shape}")
@@ -25,8 +27,8 @@ print(f"\nMissing primary_type: {merged['primary_type'].isna().sum()}")
 print(f"Missing nt_type: {merged['nt_type'].isna().sum()}")
 print(f"Missing hemilineage: {merged['hemilineage'].isna().sum()}")
 
-merged.to_csv('data/merged_annotations.csv', index=False)
-print("\nSaved data/merged_annotations.csv")
+merged.to_csv(FAFB_MERGED, index=False)
+print(f"\nSaved {FAFB_MERGED}")
 
 # Quick preview
 print("\nSample rows:")

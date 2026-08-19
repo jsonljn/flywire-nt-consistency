@@ -12,7 +12,9 @@ sys.path.insert(0, str(ROOT))
 from analysis import shannon_entropy, stratified_permutation_null, compute_entropy_per_type
 from mcns_matching import aggregate_mcns_stats, build_mcns_nt_lookup, resolve_fafb_to_mcns
 from name_matching import build_match_index, find_match
+from nt_simplex import entropy_from_count_matrix, js_divergence, parse_nt_distribution
 from nt_utils import parse_verified_nts, prediction_needs_correction
+from signature_scan import recovery_report, score_types
 
 
 class TestShannonEntropy:
@@ -108,3 +110,79 @@ class TestStratifiedNull:
         row = result.iloc[0]
         assert row["entropy"] > 1.0
         assert row["z_score"] > 0
+
+
+class TestNtSimplex:
+    def test_parse_legacy_numpy_repr(self):
+        raw = "{'GLUT': np.int64(209), 'GABA': np.int64(184), 'ACH': np.int64(69)}"
+        parsed = parse_nt_distribution(raw)
+        assert parsed == {"GLUT": 209, "GABA": 184, "ACH": 69}
+
+    def test_parse_json(self):
+        assert parse_nt_distribution('{"ACH": 10, "GABA": 2}') == {"ACH": 10, "GABA": 2}
+
+    def test_identical_distributions_have_zero_js(self):
+        p = np.array([0.5, 0.5, 0, 0, 0, 0], dtype=float)
+        assert js_divergence(p, p) == pytest.approx(0.0, abs=1e-12)
+
+    def test_entropy_from_count_matrix_matches_scalar(self):
+        counts = np.array([[10, 0, 0], [5, 5, 0], [1, 1, 1]], dtype=float)
+        got = entropy_from_count_matrix(counts)
+        expected = [shannon_entropy(row) for row in counts]
+        np.testing.assert_allclose(got, expected, atol=1e-12)
+
+
+class TestSignatureScan:
+    def _tiny_entropy_frame(self) -> pd.DataFrame:
+        """Minimal table with HIST/ORN/Dm seeds plus a nearby unlabeled type."""
+        rows = [
+            ("R7", 100, "{'GLUT': 44, 'GABA': 39, 'ACH': 15, 'DA': 1, 'SER': 1, 'OCT': 0}"),
+            ("R8", 100, "{'ACH': 58, 'GLUT': 32, 'GABA': 9, 'SER': 1, 'OCT': 0, 'DA': 0}"),
+            ("R1-6", 200, "{'ACH': 164, 'GLUT': 30, 'GABA': 4, 'SER': 2, 'OCT': 0, 'DA': 0}"),
+            ("ORN_V", 40, "{'SER': 20, 'ACH': 18, 'GABA': 2, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+            ("ORN_DL3", 40, "{'SER': 40, 'ACH': 0, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+            ("ORN_DL4", 40, "{'SER': 40, 'ACH': 0, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+            ("ORN_DM3", 40, "{'SER': 39, 'ACH': 1, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+            ("ORN_DM2", 40, "{'SER': 38, 'ACH': 2, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+            ("ORN_DA4l", 40, "{'SER': 37, 'ACH': 3, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+            ("ORN_DA4m", 40, "{'SER': 36, 'ACH': 4, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+            ("ORN_DA3", 40, "{'SER': 34, 'ACH': 6, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+            ("ORN_VA2", 40, "{'SER': 33, 'ACH': 7, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+            ("ORN_VM3", 40, "{'SER': 22, 'ACH': 18, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+            ("Dm12", 80, "{'GABA': 48, 'GLUT': 32, 'ACH': 0, 'DA': 0, 'SER': 0, 'OCT': 0}"),
+            ("Dm19", 20, "{'GABA': 14, 'GLUT': 6, 'ACH': 0, 'DA': 0, 'SER': 0, 'OCT': 0}"),
+            ("Dm1", 40, "{'GABA': 35, 'GLUT': 5, 'ACH': 0, 'DA': 0, 'SER': 0, 'OCT': 0}"),
+            ("CleanACH", 50, "{'ACH': 50, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'SER': 0, 'OCT': 0}"),
+            ("NearORN", 30, "{'SER': 28, 'ACH': 2, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
+        ]
+        records = []
+        for name, n, dist in rows:
+            parsed = parse_nt_distribution(dist)
+            from nt_simplex import counts_to_vector, normalize, shannon_entropy_from_probs
+            p = normalize(counts_to_vector(parsed))
+            records.append({
+                "cell_type": name,
+                "n_neurons": n,
+                "entropy": shannon_entropy_from_probs(p),
+                "dominant_nt": max(parsed, key=parsed.get),
+                "dominant_frac": max(parsed.values()) / n,
+                "counts": parsed,
+                "p_vec": p,
+            })
+        return pd.DataFrame(records)
+
+    def test_recovers_histamine_seeds(self):
+        scored = score_types(self._tiny_entropy_frame())
+        report = recovery_report(scored)
+        assert report["histamine_blindspot"]["n_recovered"] == report["histamine_blindspot"]["n_seeds"]
+
+    def test_clean_type_is_not_a_novel_candidate(self):
+        scored = score_types(self._tiny_entropy_frame())
+        row = scored[scored["cell_type"] == "CleanACH"].iloc[0]
+        assert row["is_novel_candidate"] in (False, 0)
+
+    def test_nearby_orn_is_flagged(self):
+        scored = score_types(self._tiny_entropy_frame())
+        row = scored[scored["cell_type"] == "NearORN"].iloc[0]
+        assert row["best_pattern"] == "ORN_SER_confusion"
+        assert row["in_neighborhood"] in (True, 1)

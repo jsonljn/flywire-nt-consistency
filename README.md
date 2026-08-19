@@ -8,6 +8,8 @@ An unbiased screen of 402 FAFB cell types found only 2 statistically significant
 
 This was cross-checked against MCNS (whose classifier does include histamine): R7, R8, Lai, and R1-6 all sit in the extreme right tail of FAFB's entropy distribution (93rd-99th percentile), and FAFB predicts zero histamine anywhere in its 139,255-neuron dataset. A subsequent check against literature ground truth confirmed the histamine explanation for R7 and R8 (and R1-6 at the n>=20 threshold), but **overturned it for Lai**: MCNS's classifier says Lai is histaminergic, but literature (Davis et al. 2020) verifies it as glutamatergic. Lai is excluded from the final correction list -- see "Deliverable" section below.
 
+A follow-up method, **confusion-signature matching**, shows why entropy alone is the wrong instrument for the largest histaminergic type. R1-6 has 4,090 neurons and is 82% predicted ACH, so the size-corrected Dale's-law z-score is *negative* (more consistent than a random label shuffle). The type is still systematically wrong. Representing each cell type as a point on the 6-simplex of FAFB outputs and scoring leave-one-out Jensen-Shannon distance to literature-confirmed fingerprints recovers R7, R8, **and R1-6** without any MCNS name match, and flags additional types in the same neighborhoods.
+
 ![Histamine blindspot](figures/histamine_blindspot.png)
 
 
@@ -36,8 +38,12 @@ This was cross-checked against MCNS (whose classifier does include histamine): R
 **Cross-dataset check:**
 ```
 python histamine_pattern_check.py
+python signature_scan.py
+python plot_signature_scan.py
 ```
 Requires both `data/merged_annotations.csv` and `data_mcns/merged_annotations.csv` to already exist, plus `results/entropy_raw.csv` from the FAFB run.
+
+`signature_scan.py` needs only `results/entropy_raw.csv` (or `entropy_raw_n10.csv`).
 
 Requires: pandas, numpy, scipy, matplotlib.
 
@@ -47,6 +53,14 @@ For each cell type with at least 20 labeled members:
 1. Compute Shannon entropy of the neurotransmitter prediction distribution
 2. Build a stratified permutation null (1000 shuffles) that preserves both the overall neurotransmitter counts and each cell type's group size, to avoid flagging small groups as inconsistent just by chance
 3. Compute a size-corrected z-score per cell type from this null
+
+The permutation null is vectorized (`numpy.add.at` over all types per shuffle) so 1000 permutations stay cheap.
+
+Entropy cannot catch a large type that is *consistently assigned the wrong transmitter*. For that:
+
+1. Parse each type's NT counts as a point on the 6-simplex (ACH, GABA, GLUT, DA, SER, OCT)
+2. Score leave-one-out Jensen-Shannon distance to literature-confirmed fingerprints (histamine: R7/R8/R1-6; ORN SER confusion; Dm GLUT confusion)
+3. Flag types inside a threshold calibrated from the seeds' own leave-one-out distances — no MCNS name match required
 
 For the cross-dataset check:
 1. From MCNS, find cell types the classifier labels >=90% consistently as histaminergic
