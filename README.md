@@ -1,6 +1,6 @@
 # Neurotransmitter Consistency Within Cell Types Across FlyWire Connectomes
 
-FlyWire summer internship project. Tests whether neurons sharing a cell type label agree on their predicted neurotransmitter, as Dale's law would suggest — and traces the strongest outliers to their actual cause.
+Tests whether neurons sharing a cell type label agree on their predicted neurotransmitter, as Dale's law would suggest — and traces the strongest outliers to their actual cause.
 
 ## Headline result
 
