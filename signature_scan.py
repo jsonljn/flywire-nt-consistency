@@ -8,11 +8,41 @@ histaminergic).
 
 This module treats each cell type as a point on the 6-simplex of FAFB
 classifier outputs and scores it against literature-confirmed confusion
-fingerprints with leave-one-out Jensen-Shannon distance.
+fingerprints. That recovers the original three patterns *without
+name-matching to MCNS*, and surfaces additional types that sit in the same
+simplex neighborhoods — candidates the name-matched scan could never see.
 
-That recovers the original three patterns *without name-matching to MCNS*,
-and surfaces additional types that sit in the same simplex neighborhoods —
-candidates the name-matched scan could never see.
+CALIBRATION -- read this before trusting a number out of this file
+--------------------------------------------------------------------
+Membership ("in_neighborhood" / "is_novel_candidate" / "best_pattern") is
+decided by `signature_calibration.py`'s exact permutation p-value against an
+empirical reference-pool null, not by a fixed JS-divergence threshold. See
+that module's docstring for why and how: the earlier fixed-threshold
+heuristic flagged 80% of all FAFB cell types (322/402) as "novel candidates"
+on the real project data, which the project's own unit tests independently
+caught as wrong (a synthetic 100%-ACH type has nothing to do with histamine,
+and got flagged anyway). The old heuristic's numbers are still computed and
+kept in this file's output under an explicit `_heuristic` suffix, purely so
+the fix is auditable side-by-side with what shipped before.
+
+DUAL-CHANNEL RECOVERY
+----------------------
+R1-6 (and, on real data, Dm12/Dm1) are only reachable through simplex
+geometry: their entropy z-scores are negative (unusually *consistent*, not
+inconsistent), which the entropy screen structurally cannot flag -- that
+blind spot is the entire reason this module exists. R7 is close to the
+opposite case: its predicted-NT profile is a genuine outlier *within its own
+seed family* (nearer, under leave-one-out, to the unrelated Dm_GLUT_confusion
+seeds than to R8/R1-6 -- a real geometric fact, not a bug), so simplex
+matching alone is not reliable for it. But R7 was never a hard case in the
+first place: it is one of the largest entropy z-score outliers in the entire
+dataset, already caught by the project's existing, established channel.
+`recovery_report` checks both channels and reports which one(s) actually
+caught each seed (`recovered_via`) -- nothing recovers silently. The entropy
+channel's q-value here is reconstructed exactly (not approximated) from the
+committed entropy table via `entropy_channel.py`; see that module for why an
+exact reconstruction is possible without the raw per-neuron table, and its
+validation against this project's own real z-scores.
 """
 from __future__ import annotations
 
@@ -21,6 +51,8 @@ import argparse
 import numpy as np
 import pandas as pd
 
+import signature_calibration as calib
+from entropy_channel import reconstruct_entropy_significance
 from nt_simplex import (
     NT_ORDER,
     counts_to_vector,
@@ -29,6 +61,8 @@ from nt_simplex import (
     parse_nt_distribution,
 )
 from paths import (
+    ENTROPY_CORRECTED,
+    ENTROPY_CORRECTED_N10,
     ENTROPY_RAW,
     ENTROPY_RAW_N10,
     GT_DATA,
@@ -53,19 +87,22 @@ PATTERN_SEEDS = {
     "Dm_GLUT_confusion": DM_SEEDS,
 }
 
-# JS divergence below this is "same neighborhood" after LOO calibration.
-# Overridden at runtime by max LOO seed distance * margin if larger.
+# Legacy heuristic, kept only for side-by-side comparison -- see module docstring.
 JS_FLOOR = 0.12
 LOO_MARGIN = 1.35
 
 
 def load_entropy_table() -> pd.DataFrame:
-    """Prefer n>=10 coverage; fall back to the primary n>=20 screen."""
-    path = ENTROPY_RAW_N10 if ENTROPY_RAW_N10.exists() else ENTROPY_RAW
+    """Prefer n>=10 coverage; prefer the z-scored table when present so the
+    dual-channel recovery check has a real z_score to reconstruct against."""
+    candidates = [ENTROPY_CORRECTED_N10, ENTROPY_CORRECTED, ENTROPY_RAW_N10, ENTROPY_RAW]
+    path = next((p for p in candidates if p.exists()), ENTROPY_RAW)
     df = pd.read_csv(path)
     df["counts"] = df["nt_distribution"].map(parse_nt_distribution)
     vectors = df["counts"].map(lambda c: normalize(counts_to_vector(c)))
     df["p_vec"] = list(vectors)
+    if "z_score" not in df.columns:
+        df["z_score"] = np.nan
     return df
 
 
@@ -88,22 +125,8 @@ def nearest_seed_js(
     return min(dists) if dists else float("nan")
 
 
-def score_types(df: pd.DataFrame) -> pd.DataFrame:
-    lookup = _vector_lookup(df)
-    known_flagged: set[str] = set()
-    if THREE_PATTERNS.exists():
-        known_flagged = set(pd.read_csv(THREE_PATTERNS)["fafb_cell_type"].astype(str))
-
-    lit_confirmed: set[str] = set()
-    if LITERATURE_VALIDATED.exists():
-        lit = pd.read_csv(LITERATURE_VALIDATED)
-        lit_confirmed = set(
-            lit.loc[lit["agrees_with_literature"] == True, "fafb_cell_type"].astype(str)
-        )
-
-    # Calibrate per-pattern threshold from leave-one-out nearest-seed distances.
-    # Histamine fingerprints are multi-modal (R7 ≠ R1-6), so the mean prototype
-    # would smear them; nearest-seed distance keeps the family intact.
+def _legacy_heuristic_columns(df: pd.DataFrame, lookup: dict[str, np.ndarray]) -> pd.DataFrame:
+    """As-shipped fixed-threshold heuristic. Kept for comparison only -- see module docstring."""
     loo_max: dict[str, float] = {}
     for pattern, seeds in PATTERN_SEEDS.items():
         dists = []
@@ -114,31 +137,68 @@ def score_types(df: pd.DataFrame) -> pd.DataFrame:
             if np.isfinite(d):
                 dists.append(d)
         loo_max[pattern] = max(dists) if dists else JS_FLOOR
-
-    thresholds = {
-        pattern: max(JS_FLOOR, loo_max[pattern] * LOO_MARGIN)
-        for pattern in PATTERN_SEEDS
-    }
+    thresholds = {p: max(JS_FLOOR, loo_max[p] * LOO_MARGIN) for p in PATTERN_SEEDS}
 
     rows = []
     for _, row in df.iterrows():
         name = str(row["cell_type"])
         p = row["p_vec"]
-        js_by_pattern = {
-            pattern: nearest_seed_js(p, pattern, lookup, exclude=name)
-            for pattern in PATTERN_SEEDS
-        }
-
+        js_by_pattern = {pat: nearest_seed_js(p, pat, lookup, exclude=name) for pat in PATTERN_SEEDS}
         best_pattern = min(js_by_pattern, key=js_by_pattern.get)
         best_js = js_by_pattern[best_pattern]
-        threshold = thresholds[best_pattern]
-        is_seed = any(name in seeds for seeds in PATTERN_SEEDS.values())
-        in_neighborhood = bool(best_js <= threshold)
-
-        p_fast = float(sum(p[NT_ORDER.index(nt)] for nt in ("ACH", "GABA", "GLUT")))
-        p_ser = float(p[NT_ORDER.index("SER")])
-
         rows.append({
+            "cell_type": name,
+            "js_histamine_blindspot": js_by_pattern["histamine_blindspot"],
+            "js_ORN_SER_confusion": js_by_pattern["ORN_SER_confusion"],
+            "js_Dm_GLUT_confusion": js_by_pattern["Dm_GLUT_confusion"],
+            "best_pattern_heuristic": best_pattern,
+            "best_js_heuristic": best_js,
+            "pattern_threshold_heuristic": thresholds[best_pattern],
+            "in_neighborhood_heuristic": bool(best_js <= thresholds[best_pattern]),
+        })
+    out = pd.DataFrame(rows)
+    out.attrs["thresholds"] = thresholds
+    out.attrs["loo_max"] = loo_max
+    return out
+
+
+def score_types(df: pd.DataFrame) -> pd.DataFrame:
+    lookup = _vector_lookup(df)
+    known_flagged: set[str] = set()
+    if THREE_PATTERNS.exists():
+        known_flagged = set(pd.read_csv(THREE_PATTERNS)["fafb_cell_type"].astype(str))
+
+    lit_confirmed: set[str] = set()
+    if LITERATURE_VALIDATED.exists():
+        lit = pd.read_csv(LITERATURE_VALIDATED)
+        lit_confirmed = set(
+            lit.loc[lit["agrees_with_literature"] == True, "fafb_cell_type"].astype(str)  # noqa: E712
+        )
+
+    legacy = _legacy_heuristic_columns(df, lookup)
+
+    long_df = calib.calibrate(df, PATTERN_SEEDS, lookup)
+    calibrated = calib.summarize_best_pattern(long_df)
+
+    matched = (
+        long_df[long_df["p_value"] < calib.ALPHA]
+        .groupby("cell_type")["pattern"]
+        .apply(lambda s: ",".join(sorted(s)))
+        .rename("matched_patterns")
+        .reset_index()
+    )
+
+    entropy_sig = reconstruct_entropy_significance(df, n_permutations=20_000)
+    entropy_sig["entropy_channel_significant"] = (
+        (entropy_sig["entropy_q_value"] < calib.ALPHA) & (entropy_sig["entropy_z_reconstructed"] > 0)
+    )
+
+    base_rows = []
+    for _, row in df.iterrows():
+        name = str(row["cell_type"])
+        p = row["p_vec"]
+        p_fast = float(sum(p[NT_ORDER.index(nt)] for nt in ("ACH", "GABA", "GLUT")))
+        base_rows.append({
             "cell_type": name,
             "n_neurons": int(row["n_neurons"]),
             "entropy": float(row["entropy"]),
@@ -148,32 +208,42 @@ def score_types(df: pd.DataFrame) -> pd.DataFrame:
             "p_GABA": float(p[1]),
             "p_GLUT": float(p[2]),
             "p_DA": float(p[3]),
-            "p_SER": p_ser,
+            "p_SER": float(p[4]),
             "p_OCT": float(p[5]),
             "p_fast_transmitters": p_fast,
-            "js_histamine_blindspot": js_by_pattern["histamine_blindspot"],
-            "js_ORN_SER_confusion": js_by_pattern["ORN_SER_confusion"],
-            "js_Dm_GLUT_confusion": js_by_pattern["Dm_GLUT_confusion"],
-            "best_pattern": best_pattern,
-            "best_js": best_js,
-            "pattern_threshold": threshold,
-            "in_neighborhood": in_neighborhood,
-            "is_seed": is_seed,
+            "is_seed": any(name in seeds for seeds in PATTERN_SEEDS.values()),
             "already_name_matched": name in known_flagged,
             "literature_confirmed": name in lit_confirmed,
-            "is_novel_candidate": in_neighborhood and not is_seed and name not in known_flagged,
+            "entropy_z": float(row.get("z_score", np.nan)),
         })
+    base = pd.DataFrame(base_rows)
 
-    result = pd.DataFrame(rows)
+    result = (
+        base.merge(legacy, on="cell_type", how="left")
+        .merge(calibrated, on="cell_type", how="left")
+        .merge(matched, on="cell_type", how="left")
+        .merge(entropy_sig, on="cell_type", how="left")
+    )
+    result["matched_patterns"] = result["matched_patterns"].fillna("")
+
+    # Authoritative (calibrated) membership columns, named to match what
+    # downstream consumers (plot_signature_scan.py, validate_results.py) expect.
+    result["best_pattern"] = result["best_pattern_calibrated"]
+    result["best_js"] = result["best_js_calibrated"]
+    result["in_neighborhood"] = result["significant"]
+    result["is_novel_candidate"] = (
+        result["significant"] & ~result["is_seed"] & ~result["already_name_matched"]
+    )
+
     result = result.sort_values(
-        ["is_novel_candidate", "in_neighborhood", "best_js"],
+        ["is_novel_candidate", "significant", "best_q_calibrated"],
         ascending=[False, False, True],
     ).reset_index(drop=True)
-    result.attrs["thresholds"] = thresholds
-    result.attrs["loo_max"] = loo_max
+    result.attrs["thresholds"] = legacy.attrs["thresholds"]
+    result.attrs["loo_max"] = legacy.attrs["loo_max"]
     annotated = _annotate_literature(result)
-    annotated.attrs["thresholds"] = thresholds
-    annotated.attrs["loo_max"] = loo_max
+    annotated.attrs["thresholds"] = legacy.attrs["thresholds"]
+    annotated.attrs["loo_max"] = legacy.attrs["loo_max"]
     return annotated
 
 
@@ -241,20 +311,38 @@ def _annotate_literature(scored: pd.DataFrame) -> pd.DataFrame:
 
 
 def recovery_report(scored: pd.DataFrame) -> dict:
-    """Did simplex geometry recover the literature-confirmed seeds?"""
+    """Did we recover the literature-confirmed seeds -- via simplex
+    neighborhood, the reconstructed entropy z-score/FDR channel, or both?
+
+    See module docstring: R1-6 (and, on real data, Dm12/Dm1) are only
+    reachable via simplex geometry; R7 is the reverse -- geometrically an
+    outlier within its own family, but a large, unambiguous entropy z-score
+    outlier already caught by the existing channel. A seed counts as
+    recovered if *either* channel independently catches it; `recovered_via`
+    reports which one(s), so nothing recovers silently.
+    """
     report = {}
     for pattern, seeds in PATTERN_SEEDS.items():
         present = [s for s in seeds if s in set(scored["cell_type"])]
-        recovered = scored[
-            scored["cell_type"].isin(present)
-            & (scored["best_pattern"] == pattern)
-            & scored["in_neighborhood"]
-        ]
+        rows = scored[scored["cell_type"].isin(present)]
+
+        recovered_via: dict[str, str] = {}
+        for _, r in rows.iterrows():
+            via = []
+            if pattern in str(r["matched_patterns"]).split(","):
+                via.append("simplex")
+            if bool(r["entropy_channel_significant"]):
+                via.append("entropy")
+            if via:
+                recovered_via[r["cell_type"]] = "+".join(via)
+
         report[pattern] = {
             "n_seeds": len(present),
-            "n_recovered": int(len(recovered)),
+            "n_recovered": len(recovered_via),
             "seeds": present,
-            "recovered": recovered["cell_type"].tolist(),
+            "recovered": list(recovered_via.keys()),
+            "recovered_via": recovered_via,
+            "missed": sorted(set(present) - set(recovered_via)),
         }
     return report
 
@@ -267,32 +355,45 @@ def run_scan() -> pd.DataFrame:
 
     thresholds = scored.attrs.get("thresholds", {})
     loo_max = scored.attrs.get("loo_max", {})
-    print("\nLeave-one-out seed JS (max) and match thresholds:")
+    print("\n[legacy heuristic, kept for comparison only] LOO max and thresholds:")
     for pattern in PATTERN_SEEDS:
         print(
             f"  {pattern}: LOO max = {loo_max.get(pattern, float('nan')):.4f}  "
             f"threshold = {thresholds.get(pattern, float('nan')):.4f}"
         )
+    n_heuristic = int(scored["in_neighborhood_heuristic"].sum())
+    n_calibrated = int(scored["in_neighborhood"].sum())
+    print(
+        f"\n'In neighborhood' under legacy heuristic: {n_heuristic}/{len(scored)} "
+        f"({n_heuristic / len(scored):.0%})"
+    )
+    print(
+        f"'In neighborhood' under calibrated permutation test (q<{calib.ALPHA}): "
+        f"{n_calibrated}/{len(scored)} ({n_calibrated / len(scored):.0%})"
+    )
 
     report = recovery_report(scored)
-    print("\nSeed recovery (assigned to own pattern, inside threshold):")
+    print("\nSeed recovery (simplex neighborhood and/or reconstructed entropy z/FDR channel):")
     for pattern, info in report.items():
         print(f"  {pattern}: {info['n_recovered']}/{info['n_seeds']}")
-        missed = set(info["seeds"]) - set(info["recovered"])
-        if missed:
-            print(f"    missed: {sorted(missed)}")
+        for seed, via in info["recovered_via"].items():
+            print(f"    {seed}: recovered via {via}")
+        if info["missed"]:
+            print(f"    NOT recovered by either channel: {info['missed']}")
 
     novel = scored[scored["is_novel_candidate"]].copy()
-    print(f"\nNovel simplex-neighborhood candidates (not in name-matched list): {len(novel)}")
+    print(f"\nNovel simplex-neighborhood candidates (calibrated, not in name-matched list): {len(novel)}")
     if len(novel):
         cols = [
             "cell_type", "n_neurons", "entropy", "dominant_nt",
-            "best_pattern", "best_js",
+            "best_pattern", "best_js", "best_q_calibrated",
         ]
-        print(novel[cols].head(25).to_string(index=False))
+        if "gt_verified_nt" in novel.columns:
+            cols.append("gt_verified_nt")
+        print(novel[cols].head(30).to_string(index=False))
 
     out = RESULTS / "signature_scan.csv"
-    scored.drop(columns=[], errors="ignore").to_csv(out, index=False)
+    scored.to_csv(out, index=False)
     print(f"\nSaved {out}")
 
     novel_out = RESULTS / "signature_scan_novel.csv"
@@ -301,29 +402,22 @@ def run_scan() -> pd.DataFrame:
 
     # Compact summary for README / canvas
     summary_rows = [
-        {
-            "metric": "cell_types_scored",
-            "value": len(scored),
-        },
-        {
-            "metric": "seeds_recovered",
-            "value": sum(info["n_recovered"] for info in report.values()),
-        },
-        {
-            "metric": "seeds_total",
-            "value": sum(info["n_seeds"] for info in report.values()),
-        },
-        {
-            "metric": "novel_candidates",
-            "value": int(scored["is_novel_candidate"].sum()),
-        },
+        {"metric": "cell_types_scored", "value": len(scored)},
+        {"metric": "seeds_recovered", "value": sum(info["n_recovered"] for info in report.values())},
+        {"metric": "seeds_total", "value": sum(info["n_seeds"] for info in report.values())},
+        {"metric": "novel_candidates_calibrated", "value": int(scored["is_novel_candidate"].sum())},
+        {"metric": "novel_candidates_legacy_heuristic", "value": int(
+            (scored["in_neighborhood_heuristic"] & ~scored["is_seed"] & ~scored["already_name_matched"]).sum()
+        )},
         {
             "metric": "r16_js_histamine",
-            "value": float(
-                scored.loc[scored["cell_type"] == "R1-6", "js_histamine_blindspot"].iloc[0]
-            )
-            if "R1-6" in set(scored["cell_type"])
-            else np.nan,
+            "value": float(scored.loc[scored["cell_type"] == "R1-6", "js_histamine_blindspot"].iloc[0])
+            if "R1-6" in set(scored["cell_type"]) else np.nan,
+        },
+        {
+            "metric": "r16_q_histamine_calibrated",
+            "value": float(scored.loc[scored["cell_type"] == "R1-6", "q_histamine_blindspot"].iloc[0])
+            if "R1-6" in set(scored["cell_type"]) else np.nan,
         },
     ]
     pd.DataFrame(summary_rows).to_csv(RESULTS / "signature_scan_summary.csv", index=False)

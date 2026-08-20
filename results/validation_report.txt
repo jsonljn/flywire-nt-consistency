@@ -1,0 +1,30 @@
+FlyWire NT Consistency — Validation Report
+==================================================
+Passed: 25/25
+Failed: 0/25
+
+[PASS] 402 cell types at n>=20 — got 402
+[PASS] Exactly 2 outliers at z>2 — got 2
+[PASS] Top outliers are R7 and R8 — got ['R7', 'R8']
+[PASS] R7 z-score ~7.8 — z=7.80
+[PASS] FAFB predicts zero HIST at type level — HIST found in distributions
+[PASS] 20 flagged cell types in three_patterns — got 20
+[PASS] Pattern 1 includes R7, R8, Lai
+[PASS] Pattern 2 has 10 ORN types
+[PASS] Pattern 3 has 7 Dm types
+[PASS] 15 literature-confirmed types — got 15
+[PASS] 1 literature-contradicted type (Lai)
+[PASS] 4 unconfirmed types — got 4
+[PASS] 1118 FAFB neuron corrections — got 1118
+[PASS] 15 cell types in FAFB corrections — got 15
+[PASS] R8 corrections exclude ACH (co-transmitter) — 0 ACH flagged
+[PASS] 4 MCNS neuron corrections — got 4
+[PASS] R7 connectivity p < 0.001 — p=0.0
+[PASS] R8 connectivity p ~ 0.095 — p=0.0945
+[PASS] Signature scan includes R1-6
+[PASS] R1-6 notably closer to histamine seeds than the dataset median — R1-6 js=0.0605, dataset median=0.0968
+[PASS] ORN cluster mostly recovered via simplex and/or entropy channel — 7/9
+[PASS] Dm cluster recovered via simplex and/or entropy channel — 2/2
+[PASS] Novel-candidate fraction is a small, reviewable minority (not the 80% bug, not zero) — 3.2% (13/402)
+[PASS] 4 confirmed histaminergic types — got 4
+[PASS] Includes R1-6

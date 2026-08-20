@@ -1,0 +1,9 @@
+cell_type,n_neurons,dominant_nt,best_pattern,best_p_calibrated
+LPi07,64,GABA,Dm_GLUT_confusion,0.0025756589435647
+Sm19,24,ACH,histamine_blindspot,0.0038609995892558
+ocellar_retinula_cell,125,SER,ORN_SER_confusion,0.0115383343714311
+Sm22,29,GLUT,Dm_GLUT_confusion,0.0128450818365394
+LPi09,83,GABA,Dm_GLUT_confusion,0.0128450818365394
+Mi13,545,GABA,Dm_GLUT_confusion,0.0128450818365394
+MTe04,30,ACH,histamine_blindspot,0.0192056161030566
+Sm04,103,GABA,Dm_GLUT_confusion,0.0281495775321499

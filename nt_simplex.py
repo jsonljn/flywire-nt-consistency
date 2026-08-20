@@ -88,6 +88,38 @@ def js_distance(p: np.ndarray, q: np.ndarray) -> float:
     return float(np.sqrt(max(js_divergence(p, q), 0.0)))
 
 
+def _kl_batch(A: np.ndarray, B: np.ndarray, eps: float) -> np.ndarray:
+    """Row-wise sum_k A_k * log2(A_k / B_k), treating 0*log(0/x) as 0."""
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(A > eps, (A + eps) / (B + eps), 1.0)
+        terms = np.where(A > eps, A * np.log2(ratio), 0.0)
+    return terms.sum(axis=1)
+
+
+def batch_js_divergence(P: np.ndarray, q: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+    """
+    Vectorized Jensen-Shannon divergence (bits): each row of P (shape (B, K))
+    against a single reference q (shape (K,)). Numerically identical to
+    calling `js_divergence(row, q)` for each row -- see
+    tests/test_core.py::TestNtSimplex::test_batch_matches_scalar.
+    """
+    P = np.clip(np.asarray(P, dtype=np.float64), 0.0, None)
+    P = P / np.maximum(P.sum(axis=1, keepdims=True), eps)
+    q = np.clip(np.asarray(q, dtype=np.float64), 0.0, None)
+    q = q / max(float(q.sum()), eps)
+    Q = np.broadcast_to(q, P.shape)
+    M = 0.5 * (P + Q)
+    return 0.5 * _kl_batch(P, M, eps) + 0.5 * _kl_batch(Q, M, eps)
+
+
+def nearest_seed_js_batch(P: np.ndarray, seed_vectors: list[np.ndarray]) -> np.ndarray:
+    """Per-row minimum JS divergence from P (shape (B, K)) to any seed vector."""
+    if not seed_vectors:
+        return np.full(len(P), np.nan)
+    dists = np.stack([batch_js_divergence(P, seed) for seed in seed_vectors], axis=1)
+    return dists.min(axis=1)
+
+
 def mean_prototype(vectors: list[np.ndarray]) -> np.ndarray:
     stacked = np.vstack(vectors)
     return normalize(stacked.mean(axis=0))
