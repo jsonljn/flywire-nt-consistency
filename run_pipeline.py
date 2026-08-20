@@ -42,6 +42,7 @@ def main() -> None:
             "plot_histamine_blindspot.py",
             "plot_patterns.py",
             "plot_signature_scan.py",
+            "plot_calibration_comparison.py",
             "connectivity_plots.py",
         ):
             run_step(f"Plot: {script}", script)
@@ -88,6 +89,9 @@ def main() -> None:
     else:
         print("SKIP literature validation — gt_data.csv or three_confusion_patterns.csv missing")
 
+    if (ROOT / "data" / "gt_data.csv").exists() and (ROOT / "results" / "signature_scan.csv").exists():
+        run_step("Signature scan literature cross-check + corrections", "build_signature_corrections.py")
+
     # Connectivity
     if not args.skip_connectivity and (ROOT / "data" / "connections.csv").exists():
         run_step("Connectivity comparison", "connectivity_comparison.py")
@@ -100,6 +104,7 @@ def main() -> None:
         run_step("Pattern summary figures", "plot_patterns.py")
     if (ROOT / "results" / "signature_scan.csv").exists():
         run_step("Signature scan figures", "plot_signature_scan.py")
+        run_step("Calibration before/after figure", "plot_calibration_comparison.py")
     run_step("Validate README claims", "validate_results.py")
 
     print("\n" + "=" * 70)

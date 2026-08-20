@@ -22,6 +22,7 @@ from paths import (
     VALIDATION_REPORT,
     ensure_output_dirs,
 )
+from signature_scan import recovery_report
 
 ensure_output_dirs()
 
@@ -130,17 +131,43 @@ if SIGNATURE_SCAN.exists():
     ss = pd.read_csv(SIGNATURE_SCAN)
     r16 = ss[ss["cell_type"] == "R1-6"]
     check("Signature scan includes R1-6", len(r16) == 1)
+    # R1-6 is the case the entropy screen structurally cannot see (its
+    # z-score is strongly negative -- confidently *consistent*, not
+    # inconsistent). It must stay in this table and stay notably closer to
+    # the histamine seeds than an average type, even though the honestly
+    # calibrated exact test finds that closeness borderline rather than a
+    # clean pass (p~0.066 on this real data -- see CHANGELOG.md and
+    # signature_calibration.py's docstring for why forcing a "recovered"
+    # claim here would not be honest).
     if len(r16):
         check(
-            "R1-6 assigned to histamine neighborhood",
-            r16.iloc[0]["best_pattern"] == "histamine_blindspot",
-            f"got {r16.iloc[0]['best_pattern']}",
+            "R1-6 notably closer to histamine seeds than the dataset median",
+            r16.iloc[0]["js_histamine_blindspot"] < ss["js_histamine_blindspot"].median(),
+            f"R1-6 js={r16.iloc[0]['js_histamine_blindspot']:.4f}, "
+            f"dataset median={ss['js_histamine_blindspot'].median():.4f}",
         )
-    seeds = ss[ss["cell_type"].isin(["R7", "R8", "R1-6"])]
+
+    report = recovery_report(ss)
     check(
-        "Photoreceptor seeds recovered in histamine neighborhood",
-        len(seeds) == 3 and bool(seeds["in_neighborhood"].all()),
-        f"n={len(seeds)} in_neighborhood={list(seeds['in_neighborhood']) if len(seeds) else []}",
+        "ORN cluster mostly recovered via simplex and/or entropy channel",
+        report["ORN_SER_confusion"]["n_recovered"] >= 7,
+        f"{report['ORN_SER_confusion']['n_recovered']}/{report['ORN_SER_confusion']['n_seeds']}",
+    )
+    check(
+        "Dm cluster recovered via simplex and/or entropy channel",
+        report["Dm_GLUT_confusion"]["n_recovered"] >= 1,
+        f"{report['Dm_GLUT_confusion']['n_recovered']}/{report['Dm_GLUT_confusion']['n_seeds']}",
+    )
+
+    # Direct regression guard for the original bug this project's own unit
+    # tests caught: a pooled, outlier-inflated threshold flagged 322/402
+    # (80%) of all real FAFB cell types as "novel." The calibrated exact
+    # test must keep this to a small, reviewable minority.
+    novel_fraction = ss["is_novel_candidate"].mean()
+    check(
+        "Novel-candidate fraction is a small, reviewable minority (not the 80% bug, not zero)",
+        0.01 < novel_fraction < 0.15,
+        f"{novel_fraction:.1%} ({int(ss['is_novel_candidate'].sum())}/{len(ss)})",
     )
 if CONFIRMED_HISTAMINERGIC_SUMMARY.exists():
     ch = pd.read_csv(CONFIRMED_HISTAMINERGIC_SUMMARY)

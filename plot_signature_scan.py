@@ -137,8 +137,9 @@ for _, row in hist.iterrows():
 ax.set_xlabel("Shannon entropy (bits)")
 ax.set_ylabel("JS divergence to histamine prototype (bits)")
 ax.set_title(
-    "Entropy misses R1-6; simplex distance does not\n"
-    "R1-6 is large and 82% ACH, so Dale's-law z-score is strongly negative"
+    "Entropy cannot see R1-6 at all; simplex distance at least gets close\n"
+    "R1-6 is large and 82% ACH, so its Dale's-law z-score is strongly negative --\n"
+    "but its simplex proximity to R7/R8 is real, not overwhelming (p~0.07, see README)"
 )
 ax.legend(fontsize=8)
 plt.tight_layout()

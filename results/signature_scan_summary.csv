@@ -1,0 +1,8 @@
+metric,value
+cell_types_scored,402.0
+seeds_recovered,11.0
+seeds_total,14.0
+novel_candidates_calibrated,13.0
+novel_candidates_legacy_heuristic,322.0
+r16_js_histamine,0.06050748082358681
+r16_q_histamine_calibrated,0.9380801404398125
