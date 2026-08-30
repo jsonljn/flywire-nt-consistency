@@ -12,11 +12,11 @@ Failed: 0/25
 [PASS] Pattern 1 includes R7, R8, Lai
 [PASS] Pattern 2 has 10 ORN types
 [PASS] Pattern 3 has 7 Dm types
-[PASS] 15 literature-confirmed types — got 15
+[PASS] 16 literature-confirmed types — got 16
 [PASS] 1 literature-contradicted type (Lai)
-[PASS] 4 unconfirmed types — got 4
-[PASS] 1118 FAFB neuron corrections — got 1118
-[PASS] 15 cell types in FAFB corrections — got 15
+[PASS] 3 unconfirmed types — got 3
+[PASS] 1297 FAFB neuron corrections — got 1297
+[PASS] 16 cell types in FAFB corrections — got 16
 [PASS] R8 corrections exclude ACH (co-transmitter) — 0 ACH flagged
 [PASS] 4 MCNS neuron corrections — got 4
 [PASS] R7 connectivity p < 0.001 — p=0.0

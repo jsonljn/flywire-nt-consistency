@@ -187,22 +187,24 @@ Every candidate above was cross-checked against the literature-curated ground tr
 
 | Outcome | Count | Cell types |
 |---|---|---|
-| Confirmed by literature | 15 | R7, R8, 10 ORN types, Dm12, Dm19, Dm1 |
+| Confirmed by literature | 16 | R7, R8, 10 ORN types, Dm12, Dm19, Dm1, Dm9 |
 | Contradicted by literature -- excluded | 1 | Lai (MCNS said histamine; literature/Davis et al. 2020 verifies glutamate, confidence 4/5) |
-| No literature match -- unconfirmed, not corrected | 4 | Dm16, Dm20, Dm6, Dm9 |
+| No literature match -- unconfirmed, not corrected | 3 | Dm16, Dm20, Dm6 |
 
 The Lai exclusion is a real finding in its own right: MCNS's own classifier appears to be wrong for this specific type, which is exactly the kind of error this literature cross-check is designed to catch before it turns into a bad correction.
 
 R8 is confirmed as a genuine co-transmitter (ACH **and** histamine both verified present, matching Xiao et al. 2023's finding independently) -- so R8 neurons already predicted ACH are not flagged as wrong, only the ones predicted something else.
 
+**Dm9, added via direct literature search.** The curated ground-truth aggregator has real gaps in Dm-family coverage (only 12 of 22 Dm-numbered FAFB types have any entry at all). Dm9 was one of the 10 missing, so it was initially left unconfirmed. A direct search of the primary literature found two independent sources: Kind et al., 2021, eLife (doi:10.7554/eLife.71858), stating Dm9 is glutamatergic citing Davis et al. 2020, and Schnaitmann et al., 2024, Frontiers in Molecular Neuroscience (doi:10.3389/fnmol.2024.1347540), with direct physiological evidence of glutamate release from Dm9. FAFB predicts Dm9 as 99.4% ACH (178 of 179 neurons) against this. Dm9 is now in the correction list; the remaining 3 unconfirmed types (Dm16, Dm20, Dm6) did not turn up conclusive evidence after the same search approach and remain unconfirmed, not silently dropped.
+
 **Final correction lists** (`corrections/corrections_fafb.csv`, `corrections/corrections_mcns.csv`): one row per neuron whose current prediction doesn't match the literature-verified transmitter(s), with the source citation, confidence score, and proposed action attached.
 
 | Dataset | Neurons flagged | Cell types covered |
 |---|---|---|
-| FAFB | 1,118 | 15 |
-| MCNS | 4 | 1 (ExR7, a related subtype not part of the original 15) |
+| FAFB | 1,297 | 16 |
+| MCNS | 4 | 1 (ExR7, a related subtype not part of the original 16) |
 
-`corrections/excluded_unconfirmed_candidates.csv` lists the 5 excluded/unconfirmed types for transparency, so nothing is silently dropped.
+`corrections/excluded_unconfirmed_candidates.csv` lists the 4 excluded/unconfirmed types for transparency, so nothing is silently dropped.
 
 The confusion-signature scan's own literature-confirmed corrections (`corrections/corrections_signature_scan_novel.csv`, 2 additional cell types: hDeltaK, TmY16) are kept separate from the two tables above since they were found by geometry, not cross-dataset name matching -- see "Recalibrating the confusion-signature scan" above for the full record including near-misses and unconfirmed candidates.
 
