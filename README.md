@@ -204,7 +204,7 @@ R8 is confirmed as a genuine co-transmitter (ACH **and** histamine both verified
 | Dataset | Neurons flagged | Cell types covered |
 |---|---|---|
 | FAFB | 1,390 | 18 |
-| MCNS | 4 | 1 (ExR7, a related subtype not part of the original 16) |
+| MCNS | 4 | 1 (ExR7, a related subtype not part of the original 18) |
 
 `corrections/excluded_unconfirmed_candidates.csv` lists the 4 excluded/unconfirmed types for transparency, so nothing is silently dropped.
 
