@@ -18,4 +18,6 @@ Dm20,Dm_GLUT_confusion,GABA,GLUT,,,,,,,no_match_found,,
 Dm19,Dm_GLUT_confusion,GABA,GLUT,Dm19,exact_case_insensitive,{'GLUT'},"{'ACH', 'GABA'}",4.0,"Nern et al., 2024",matched_with_verified_nt,GLUT,True
 Dm1,Dm_GLUT_confusion,GABA,GLUT,Dm1,exact_case_insensitive,{'GLUT'},"{'ACH', 'GABA'}",4.0,"Davis et al., 2020",matched_with_verified_nt,GLUT,True
 Dm6,Dm_GLUT_confusion,GABA,GLUT,,,,,,,no_match_found,,
-Dm9,Dm_GLUT_confusion,ACH,GLUT,,,,,,,no_match_found,,
+Dm9,Dm_GLUT_confusion,ACH,GLUT,,,,,,,confirmed_via_manual_direct_search (not in gt_data.csv aggregator),GLUT,True
+hDeltaK,ORN_SER_confusion,SER,ACH,N/A -- signature scan + manual search,manual,{'ACH'},set(),3.0,"Wolff et al., 2024 (bioRxiv)/2025 eLife RP104764, EASI-FISH",confirmed_via_signature_scan_and_manual_search,ACH,True
+TmY16,Dm_GLUT_confusion,GABA,GLUT,N/A -- signature scan + manual search,manual,{'GLUT'},set(),3.0,"Nern et al., 2024 (bioRxiv)/2025 Nature 641:1225-1237, EASI-FISH",confirmed_via_signature_scan_and_manual_search,GLUT,True

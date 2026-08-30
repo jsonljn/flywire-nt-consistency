@@ -96,17 +96,17 @@ if LITERATURE_VALIDATED.exists():
     excluded = lv[lv["agrees_with_literature"] == False]
     unconfirmed = lv[lv["literature_status"] == "no_match_found"]
 
-    check("15 literature-confirmed types", len(confirmed) == 15, f"got {len(confirmed)}")
+    check("18 literature-confirmed types", len(confirmed) == 18, f"got {len(confirmed)}")
     check("1 literature-contradicted type (Lai)", len(excluded) == 1 and excluded.iloc[0]["fafb_cell_type"] == "Lai")
-    check("4 unconfirmed types", len(unconfirmed) == 4, f"got {len(unconfirmed)}")
+    check("3 unconfirmed types", len(unconfirmed) == 3, f"got {len(unconfirmed)}")
 
 # ── Corrections ──
 fafb_corr = CORRECTIONS / "corrections_fafb.csv"
 mcns_corr = CORRECTIONS / "corrections_mcns.csv"
 if fafb_corr.exists():
     fc = pd.read_csv(fafb_corr)
-    check("1118 FAFB neuron corrections", len(fc) == 1118, f"got {len(fc)}")
-    check("15 cell types in FAFB corrections", fc["cell_type"].nunique() == 15, f"got {fc['cell_type'].nunique()}")
+    check("1390 FAFB neuron corrections", len(fc) == 1390, f"got {len(fc)}")
+    check("18 cell types in FAFB corrections", fc["cell_type"].nunique() == 18, f"got {fc['cell_type'].nunique()}")
     if "R8" in fc["cell_type"].values:
         r8_wrong = fc[fc["cell_type"] == "R8"]
         check(
