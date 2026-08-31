@@ -1,0 +1,94 @@
+"""
+Composite suspicion score for the FAFB correction candidates.
+
+Combines two independently-meaningful, directly-measured quantities:
+
+  E1 (confident_wrongness): the classifier's own reported confidence
+     (nt_type_score) in the prediction we're flagging as wrong. A confident
+     wrong answer is a stronger anomaly than an unsure one -- the classifier
+     itself would have flagged low-confidence predictions as uncertain.
+
+  E2 (evidence_against_correct): how much probability mass the classifier's
+     internal averages (ach_avg, glut_avg, gaba_avg, da_avg, ser_avg, oct_avg)
+     assigned to the literature-verified correct transmitter. Only defined
+     when that transmitter is one of the 6 categories the classifier can
+     express at all -- for histamine blind-spot cases (R7, R8, R1-6), the
+     correct answer (HIST) has no corresponding probability column, so this
+     is structurally undefined, not just missing, and is marked N/A rather
+     than imputed.
+
+Composite:
+  Where E2 is defined:   suspicion = E1 * (1 - E2)
+  Where E2 is undefined: suspicion = E1   (categorical blind-spot cases)
+
+This is deliberately a simple, fully-explainable product of two directly
+measured quantities -- not a black-box weighted sum with tuned coefficients,
+since there is no labeled validation set to tune weights against.
+
+Usage:
+    python suspicion_score.py
+Requires data/merged_annotations.csv and corrections/corrections_fafb.csv.
+Writes corrections/corrections_fafb_scored.csv.
+"""
+import pandas as pd
+import numpy as np
+
+AVG_COL_FOR_NT = {
+    'ACH': 'ach_avg', 'GLUT': 'glut_avg', 'GABA': 'gaba_avg',
+    'DA': 'da_avg', 'SER': 'ser_avg', 'OCT': 'oct_avg',
+}
+
+
+def compute_e2(row):
+    verified = str(row['verified_nt']).split(',')
+    real_cats = [nt for nt in verified if nt in AVG_COL_FOR_NT]
+    if not real_cats:
+        return np.nan
+    return max(row[AVG_COL_FOR_NT[nt]] for nt in real_cats)
+
+
+def main():
+    print("Loading FAFB annotations and correction candidates...")
+    fafb = pd.read_csv('data/merged_annotations.csv')
+    corrections = pd.read_csv('corrections/corrections_fafb.csv')
+    print(f"  {len(corrections)} correction candidates to score")
+
+    fafb_scores = fafb[['root_id', 'nt_type_score', 'ach_avg', 'glut_avg', 'gaba_avg',
+                         'da_avg', 'ser_avg', 'oct_avg']]
+    scored = corrections.merge(fafb_scores, on='root_id', how='left')
+
+    missing = scored['nt_type_score'].isna().sum()
+    if missing:
+        print(f"  WARNING: {missing} neurons missing nt_type_score after merge")
+
+    scored['E1_confident_wrongness'] = scored['nt_type_score']
+    scored['E2_evidence_for_correct'] = scored.apply(compute_e2, axis=1)
+    scored['suspicion_score'] = scored.apply(
+        lambda r: r['E1_confident_wrongness'] if pd.isna(r['E2_evidence_for_correct'])
+        else r['E1_confident_wrongness'] * (1 - r['E2_evidence_for_correct']),
+        axis=1,
+    )
+    scored['score_type'] = np.where(
+        scored['E2_evidence_for_correct'].isna(),
+        'categorical_blindspot (E1 only)', 'full (E1 x E2)',
+    )
+
+    scored = scored.sort_values('suspicion_score', ascending=False).reset_index(drop=True)
+    scored['rank'] = scored.index + 1
+
+    cols = ['rank', 'root_id', 'cell_type', 'pattern', 'current_predicted_nt', 'verified_nt',
+            'E1_confident_wrongness', 'E2_evidence_for_correct', 'suspicion_score', 'score_type',
+            'evidence_source', 'evidence_confidence', 'proposed_action']
+    scored = scored[cols]
+
+    scored.to_csv('corrections/corrections_fafb_scored.csv', index=False)
+    print(f"\nSaved corrections/corrections_fafb_scored.csv ({len(scored)} rows)")
+    print("\nTop 10 highest-priority corrections:")
+    print(scored.head(10)[['rank', 'cell_type', 'current_predicted_nt', 'verified_nt',
+                            'suspicion_score']].to_string(index=False))
+    print("\nScore type breakdown:")
+    print(scored['score_type'].value_counts())
+
+
+if __name__ == "__main__":
+    main()

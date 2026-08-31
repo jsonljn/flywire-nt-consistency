@@ -210,6 +210,20 @@ R8 is confirmed as a genuine co-transmitter (ACH **and** histamine both verified
 
 The confusion-signature scan's own literature-confirmed corrections (`corrections/corrections_signature_scan_novel.csv`, 2 additional cell types: hDeltaK, TmY16) are kept separate from the two tables above since they were found by geometry, not cross-dataset name matching; see "Recalibrating the confusion-signature scan" above for the full record including near-misses and unconfirmed candidates.
 
+## Prioritizing corrections: a per-neuron suspicion score
+
+Not every flagged neuron is an equally clear-cut error. `suspicion_score.py` ranks the FAFB corrections using two directly-measured quantities: **E1**, the classifier's own confidence (`nt_type_score`) in the wrong prediction, and **E2**, how much probability mass FAFB's per-category averages (`ach_avg`, `glut_avg`, etc.) assigned to the literature-verified correct answer -- computable only where that answer is one of FAFB's 6 output categories, marked `N/A` for the categorical blind-spot cases (R7, R8, R1-6) since the math is structurally undefined there, not just missing.
+
+Composite: `suspicion = E1 * (1 - E2)` where E2 is defined, `suspicion = E1` otherwise. This is a transparent product of two measured quantities, not a tuned weighted sum -- there's no labeled validation set to tune weights against.
+
+![Suspicion score](figures/suspicion_score.png)
+
+The top-ranked cases are the clearest starting point for manual review: e.g. ORN_DL3 neurons the classifier is 90%+ confident are serotonergic, while acetylcholine (the literature-verified answer) gets only a few percent support. `suspicion_score_mcns.py` applies the same idea to MCNS's 4 corrections, using E1 only since MCNS's export doesn't expose a per-category probability breakdown the way FAFB's does. `suspicion_score_plot.py` generates the figure above.
+
+Caveat, stated plainly: categorical blind-spot cases (E1 only) score higher on average (mean 0.56, n=474) than the full E1xE2 cases (mean 0.44, n=916) partly as a formula artifact, not because they're necessarily worse errors. The `score_type` column marks which formula applies to each row so this is never hidden.
+
+Run order: `python suspicion_score.py` then `python suspicion_score_mcns.py` then `python suspicion_score_plot.py`, after `corrections/corrections_fafb.csv` and `corrections/corrections_mcns.csv` already exist. Outputs: `corrections/corrections_fafb_scored.csv`, `corrections/corrections_mcns_scored.csv`, `figures/suspicion_score.png`.
+
 
 ## Data source
 
@@ -218,10 +232,6 @@ FlyWire Codex (codex.flywire.ai), FAFB v783 and MCNS v0.9. See [FlyWire citation
 ## Key reference
 
 Eckstein, N. et al. Neurotransmitter classification from electron microscopy images at synaptic sites in Drosophila melanogaster. *Cell* (2024). doi:10.1016/j.cell.2024.03.016; explicitly lists histamine as an unsolved prediction target, consistent with this project's finding.
-
-## Session update: hDeltaK, TmY16, and suspicion scoring added
-
-Two additional candidates from the signature-scan branch, hDeltaK (predicted SER, corrected to ACH) and TmY16 (predicted GABA, corrected to GLUT), are now merged into corrections_fafb.csv (26 and 67 neurons respectively). Sources: Wolff et al. 2024/2025 eLife and Nern et al. 2024/2025 Nature, both real EASI-FISH neurotransmitter surveys directly on-topic, but the exact per-cell-type data point lives in each paper's supplementary table and was not independently re-verified beyond confirming the papers are real and topically correct. Flagged in each row's proposed_action; confirm against the source table before applying.
 
 corrections_fafb_scored.csv and corrections_mcns_scored.csv rank every correction by a suspicion score combining classifier confidence (E1) with evidence against the correct answer (E2, where computable). See suspicion_score.py / suspicion_score_mcns.py.
 
