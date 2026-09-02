@@ -29,19 +29,32 @@ mcns_lookup = build_mcns_nt_lookup(mcns)
 mcns_type_names = mcns["primary_type"].dropna().unique().tolist()
 print(f"MCNS cell types available: {len(mcns_lookup)}")
 
+# See general_scan_n10.py's WATCH_TYPES for why this matters: these are the
+# project's own confirmed histaminergic seeds and must never drop silently.
+WATCH_TYPES = {"R7", "R8", "R1-6", "Lai"}
+
 results = []
+dropped = []
 for _, row in fafb_entropy.iterrows():
     fafb_type = row["cell_type"]
+    watched = fafb_type in WATCH_TYPES
+
     mcns_names, method = resolve_fafb_to_mcns(fafb_type, mcns_type_names)
     if mcns_names is None:
+        if watched:
+            dropped.append((fafb_type, "no MCNS name match at all"))
         continue
 
     stats = aggregate_mcns_stats(mcns_names, mcns_lookup)
     if stats["n"] == 0:
+        if watched:
+            dropped.append((fafb_type, f"matched {mcns_names} but 0 rows in mcns_lookup"))
         continue
 
     if len(mcns_names) > 1:
         if not stats.get("all_subtypes_consistent", False):
+            if watched:
+                dropped.append((fafb_type, f"multi-subtype match {mcns_names} not all_subtypes_consistent"))
             continue
         mcns_nt = "HIST" if stats["majority_nt"] == "HIST" else stats["majority_nt"]
         mcns_frac = stats["majority_frac"]
@@ -65,6 +78,13 @@ for _, row in fafb_entropy.iterrows():
 
 df = pd.DataFrame(results)
 print(f"\nTotal FAFB types with any MCNS match: {len(df)}")
+
+surviving_watched = set(df["fafb_cell_type"]) if len(df) else set()
+missing_watched = WATCH_TYPES - surviving_watched
+if missing_watched:
+    print(f"\nWARNING: {len(missing_watched)} watched seed type(s) did not reach results:")
+    for name, reason in dropped:
+        print(f"  - {name}: {reason}")
 
 hist_candidates = df[(df["mcns_majority_nt"] == "HIST") & (df["mcns_majority_frac"] >= 0.9)]
 print(f"\nMCNS-confirmed histaminergic types with an FAFB match: {len(hist_candidates)}")

@@ -55,8 +55,30 @@ class TestNameMatching:
 
 class TestMcnsMatching:
     def test_range_notation(self):
+        # NOTE: this fixture assumes the real MCNS primary_type value is
+        # spelled exactly "R1-R6". That assumption is NOT verified against
+        # real data anywhere in this repo (data/ is gitignored) and must not
+        # be treated as proof that R1-6 actually matches in production; see
+        # README "Known gap" and the fragility test below.
         names = ["R1-R6", "R7y", "R7p", "Dm1", "Dm12", "Dm1a"]
         assert resolve_fafb_to_mcns("R1-6", names) == (["R1-R6"], "range_notation")
+
+    def test_r1_6_has_no_subtype_fallback_unlike_r7_r8(self):
+        # Documents the likely real root cause of the R1-6 gap (see README
+        # "Known gap"). R7 and R8 both have an EXPLICIT_SUBTYPE_GROUPS entry
+        # because MCNS is known to split them into named subtypes (R7y/R7p/...).
+        # R1-6 has no such entry. If MCNS also splits R1-6 into subtypes
+        # (plausible -- R1-6 photoreceptor subtypes are anatomically distinct,
+        # same as R7/R8) rather than storing one combined "R1-R6" name, the
+        # match silently fails: range notation needs that exact combined
+        # string, and there is no subtype-group fallback to catch the split
+        # case the way there is for R7/R8. Verified: only the single exact
+        # spelling "R1-R6" succeeds; split subtypes do not.
+        split_subtype_names = ["R1", "R2", "R3", "R4", "R5", "R6", "R7y", "R7p"]
+        assert resolve_fafb_to_mcns("R1-6", split_subtype_names) == (None, None)
+
+        combined_name = ["R1-R6", "R7y", "R7p"]
+        assert resolve_fafb_to_mcns("R1-6", combined_name) == (["R1-R6"], "range_notation")
 
     def test_dm1_does_not_match_dm12(self):
         names = ["Dm1", "Dm12", "Dm1a"]

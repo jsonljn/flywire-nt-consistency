@@ -42,19 +42,34 @@ print(f"FAFB cell types to check (n>=10): {len(fafb_entropy)}")
 mcns_lookup = build_mcns_nt_lookup(mcns)
 mcns_type_names = mcns["primary_type"].dropna().unique().tolist()
 
+# Known-important cell types this scan must never drop without a printed reason.
+# R7/R8/R1-6/Lai are the project's own confirmed histaminergic seeds (see README
+# "Headline result"); if any of them fails to reach `results`, that is a pipeline
+# bug, not a negative finding, and must not fail silently.
+WATCH_TYPES = {"R7", "R8", "R1-6", "Lai"}
+
 results = []
+dropped = []
 for _, row in fafb_entropy.iterrows():
     fafb_type = row["cell_type"]
+    watched = fafb_type in WATCH_TYPES
+
     mcns_names, method = resolve_fafb_to_mcns(fafb_type, mcns_type_names)
     if mcns_names is None:
+        if watched:
+            dropped.append((fafb_type, "no MCNS name match at all"))
         continue
 
     stats = aggregate_mcns_stats(mcns_names, mcns_lookup)
     if stats["n"] == 0:
+        if watched:
+            dropped.append((fafb_type, f"matched {mcns_names} but 0 rows in mcns_lookup"))
         continue
 
     if len(mcns_names) > 1:
         if not stats.get("all_subtypes_consistent", False):
+            if watched:
+                dropped.append((fafb_type, f"multi-subtype match {mcns_names} not all_subtypes_consistent"))
             continue
         mcns_nt = stats["majority_nt"]
         mcns_frac = stats["majority_frac"]
@@ -65,6 +80,8 @@ for _, row in fafb_entropy.iterrows():
         mcns_n = stats["n"]
 
     if mcns_frac < 0.9 or mcns_n < 10:
+        if watched:
+            dropped.append((fafb_type, f"matched {mcns_names}, n={mcns_n}, frac={mcns_frac:.3f} (below 0.9/10 threshold)"))
         continue
 
     results.append({
@@ -84,6 +101,16 @@ for _, row in fafb_entropy.iterrows():
 
 df = pd.DataFrame(results)
 print(f"\nFAFB types with an MCNS match confirming >=90% single-NT consistency: {len(df)}")
+
+surviving_watched = set(df["fafb_cell_type"]) if len(df) else set()
+missing_watched = WATCH_TYPES - surviving_watched
+if missing_watched:
+    print(f"\nWARNING: {len(missing_watched)} watched seed type(s) did not reach results:")
+    for name, reason in dropped:
+        print(f"  - {name}: {reason}")
+    unexplained = missing_watched - {name for name, _ in dropped}
+    for name in unexplained:
+        print(f"  - {name}: not in fafb_entropy input at all (check {entropy_path.name})")
 
 # Flag cases with meaningful FAFB entropy despite MCNS-confirmed consistency.
 # Use both an absolute floor (0.3 bits) and the 90th percentile among matched types.
