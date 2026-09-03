@@ -1,6 +1,7 @@
 # Raw and merged annotation data — large, easily re-downloaded from Codex.
 # See README.md for exact download + reproduce instructions.
 data/
+data_mcns/
 
 # Python
 __pycache__/

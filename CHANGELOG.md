@@ -1,6 +1,64 @@
 # Changelog
 
-## Known issue (unresolved): R1-6 missing from corrections_fafb.csv
+## R1-6/R7/R8 resolved against real MCNS data; two earlier hypotheses were wrong
+
+Real `data_mcns/neurons.csv` (Codex, MCNS v1.0, "Neuron Attributes") became
+available and was run through the actual pipeline. Result: R1-6 was never
+broken. R7 and R8 were, for an unrelated reason. Both prior guesses in this
+file (below) were wrong; recorded here rather than deleted, since they were
+reasonable given the evidence available at the time and the way they were
+wrong is itself useful.
+
+### What was actually wrong
+
+`EXPLICIT_SUBTYPE_GROUPS["R7"]` and `["R8"]` (`mcns_matching.py`) included
+`"ExR7"`/`"ExR8"`. These are Extrinsic Ring neurons of the ellipsoid body
+(Hanesch et al. 1989), an unrelated cell class that happens to share a name
+substring with the photoreceptors. Verified: ExR7 (n=4, real MCNS data) is
+100% ACH, while true R7 photoreceptor subtypes (R7y/R7p/R7d/R7_unclear) are
+100% HIST where predicted. Mixing them into one group meant
+`all_subtypes_consistent` failed for every R7 and R8 lookup, so both were
+silently dropped, every run, regardless of threshold values.
+
+R1-6 needed no fix. It resolves via plain range notation (`"R1-6" ->
+"R1-R6"`) exactly as originally written, and reproduces the project's
+headline numbers exactly against real data: n=4,090, 81.9% predicted ACH
+(matches the "82%" cited throughout), MCNS confirms 750/750 HIST.
+
+### Why the two earlier hypotheses in this file were wrong
+
+1. The original claim (below, "Known issue" entry) guessed the drop happened
+   *after* a successful match, at the `mcns_frac < 0.9` / `mcns_n < 10`
+   threshold check. Wrong: R1-6 never had a threshold problem, its real
+   `mcns_frac` is 1.0 and `mcns_n` is 750, both well past threshold. The
+   drop (of R7/R8, not R1-6) happened one step earlier, at the
+   `all_subtypes_consistent` check, which that hypothesis didn't consider.
+
+2. The revised claim (below, "Known issue: R1-6 missing" entry) guessed R1-6
+   itself needed a subtype-group fallback because it has none, unlike
+   R7/R8. Wrong in the opposite direction: R7/R8's *having* an (incorrect)
+   subtype group is what broke them. R1-6 having no subtype group was never
+   the problem; it doesn't need one. Both guesses were made without the raw
+   MCNS file and turned out to be reasonable-sounding but incorrect; this is
+   why the "not fixed here, do not guess" note in that entry existed, and
+   why it was right to leave the actual `EXPLICIT_SUBTYPE_GROUPS` code
+   untouched until real data was available to check against.
+
+### What was fixed
+
+Removed `"ExR7"`/`"ExR8"` from `EXPLICIT_SUBTYPE_GROUPS`. Re-ran
+`general_scan_n10.py` against real data: no `WARNING` for R7, R8, R1-6, or
+Lai; all four now appear in `results/general_scan_n10_full.csv` with
+`is_categorical_blindspot=True`, matching the headline claims. Not yet done:
+re-running the rest of the pipeline (`signature_scan.py`,
+`validate_against_literature.py`, `build_corrections.py`) to regenerate
+`corrections_fafb.csv` and the committed 1,390/18 totals against this fix,
+and normalizing FAFB's own raw download the same way MCNS's was (FAFB's
+`neurons.csv`/`cell_types.csv`/`classification.csv` use Title-Case column
+names from Codex; `merge_data.py` still expects snake_case, the same class
+of bug this entry just fixed on the MCNS side).
+
+## Known issue: R1-6 missing from corrections_fafb.csv
 
 R1-6 (4,090 neurons, the project's flagship finding) is present in
 `results/signature_scan.csv`, correctly flagged as `histamine_blindspot`

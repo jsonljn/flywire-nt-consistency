@@ -63,22 +63,42 @@ class TestMcnsMatching:
         names = ["R1-R6", "R7y", "R7p", "Dm1", "Dm12", "Dm1a"]
         assert resolve_fafb_to_mcns("R1-6", names) == (["R1-R6"], "range_notation")
 
-    def test_r1_6_has_no_subtype_fallback_unlike_r7_r8(self):
-        # Documents the likely real root cause of the R1-6 gap (see README
-        # "Known gap"). R7 and R8 both have an EXPLICIT_SUBTYPE_GROUPS entry
-        # because MCNS is known to split them into named subtypes (R7y/R7p/...).
-        # R1-6 has no such entry. If MCNS also splits R1-6 into subtypes
-        # (plausible -- R1-6 photoreceptor subtypes are anatomically distinct,
-        # same as R7/R8) rather than storing one combined "R1-R6" name, the
-        # match silently fails: range notation needs that exact combined
-        # string, and there is no subtype-group fallback to catch the split
-        # case the way there is for R7/R8. Verified: only the single exact
-        # spelling "R1-R6" succeeds; split subtypes do not.
-        split_subtype_names = ["R1", "R2", "R3", "R4", "R5", "R6", "R7y", "R7p"]
-        assert resolve_fafb_to_mcns("R1-6", split_subtype_names) == (None, None)
-
+    def test_r1_6_range_notation_hypothesis_was_a_dead_end(self):
+        # This test originally claimed to document "the likely real root
+        # cause" of the R1-6 gap: that R1-6 might need a subtype-group
+        # fallback the way R7/R8 have. That turned out to be wrong -- see
+        # CHANGELOG. R1-6 never needed a fix; it resolves via range notation
+        # exactly as originally written, verified against real MCNS data
+        # (n=4,090, 81.9% ACH, MCNS confirms 750/750 HIST). Kept as a
+        # regression check that plain range notation still works, not as
+        # evidence about what was actually broken.
         combined_name = ["R1-R6", "R7y", "R7p"]
         assert resolve_fafb_to_mcns("R1-6", combined_name) == (["R1-R6"], "range_notation")
+
+    def test_exr7_exr8_excluded_from_r7_r8_subtype_groups(self):
+        # The real bug (see CHANGELOG "R1-6/R7/R8 resolved against real MCNS
+        # data"): EXPLICIT_SUBTYPE_GROUPS used to include "ExR7"/"ExR8",
+        # Extrinsic Ring neurons of the ellipsoid body (Hanesch et al. 1989),
+        # an unrelated cell class that shares a name substring with the R7/R8
+        # photoreceptors. Real MCNS data: ExR7 is 100% ACH, true R7 subtypes
+        # are 100% HIST, so all_subtypes_consistent failed for every R7/R8
+        # lookup and both were silently dropped. This must never regress.
+        from mcns_matching import EXPLICIT_SUBTYPE_GROUPS
+        assert "ExR7" not in EXPLICIT_SUBTYPE_GROUPS["R7"]
+        assert "ExR8" not in EXPLICIT_SUBTYPE_GROUPS["R8"]
+
+        names = ["R7y", "R7p", "R7d", "R7_unclear", "ExR7"]
+        mcns_df = pd.DataFrame({
+            "primary_type": ["R7y"] * 66 + ["R7p"] * 78 + ["R7d"] * 68
+            + ["R7_unclear"] * 75 + ["ExR7"] * 4,
+            "nt_type": ["HIST"] * (66 + 78 + 68 + 75) + ["ACH"] * 4,
+        })
+        lookup = build_mcns_nt_lookup(mcns_df)
+        matched, method = resolve_fafb_to_mcns("R7", names)
+        assert matched == ["R7y", "R7p", "R7d", "R7_unclear"]
+        stats = aggregate_mcns_stats(matched, lookup)
+        assert stats.get("all_subtypes_consistent", False) is True
+        assert stats["majority_nt"] == "HIST"
 
     def test_dm1_does_not_match_dm12(self):
         names = ["Dm1", "Dm12", "Dm1a"]
