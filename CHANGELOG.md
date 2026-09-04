@@ -1,5 +1,56 @@
 # Changelog
 
+## Verified fix not propagated to committed results; two more blockers found
+
+Follow-up to the entry below. The ExR7/ExR8 fix is real and verified live
+against a real Codex MCNS v1.0 download (`data_mcns/neurons.csv`,
+`normalize_mcns.py` → `general_scan_n10.py`): no drop warning, R7, R8,
+R1-6, and Lai all resolve correctly, matching the project's headline
+numbers exactly (R1-6: n=4090, 81.9% ACH, MCNS 750/750 HIST).
+
+That result was **not** committed into `results/general_scan_n10_full.csv`
+/ `general_scan_n10_flagged.csv`. Reason: this repo is also missing
+`results/entropy_raw_n10.csv` (the FAFB n>=10 sensitivity screen), which
+needs real `data/merged_annotations.csv` to rebuild, also unavailable here.
+Without it, `general_scan_n10.py` silently falls back to the coarser
+n>=20 `entropy_raw.csv`. Checked directly: the resulting match list drops
+from 381 types (original, committed) to 245 (this session's regeneration).
+It gains R1-6, and loses 136 legitimate n=10-19 matches, including
+`ORN_DA3` and `Dm19`, both already present in the committed correction
+lists. That's a large net loss for one gain. Reverted
+(`git checkout db1dd76 -- results/general_scan_n10_full.csv
+results/general_scan_n10_flagged.csv`) rather than keep the smaller file.
+`results/three_confusion_patterns.csv`, `results/full_cross_dataset_scan.csv`,
+`results/signature_scan.csv`, and `results/signature_scan_novel.csv` were
+also regenerated this session and also reverted for the same reason (the
+signature_scan files additionally lose their `gt_verified_nt` /
+`gt_agrees_with_pattern` columns without `data/gt_data.csv`, a separate,
+also-unavailable-here file).
+
+### Full blocker list, for whoever runs this next
+
+1. `data_mcns/neurons.csv` -- now resolved (Codex, MCNS v1.0, "Neuron
+   Attributes"). Note the version: this repo's own instructions and
+   citations say MCNS v0.9 throughout; v1.0 is what was actually used to
+   verify the fix above. Not checked: whether v0.9 had the same ExR7/ExR8
+   contamination, or whether R1-6's real MCNS name changed between
+   versions. The `EXPLICIT_SUBTYPE_GROUPS` fix itself doesn't depend on
+   which version turns out to be true.
+2. `data/merged_annotations.csv` (FAFB, from `neurons.csv` +
+   `cell_types.csv` + `classification.csv` via `merge_data.py`) -- still
+   needed, to rebuild `results/entropy_raw_n10.csv` via
+   `analysis.py data/merged_annotations.csv --min-members 10`.
+3. `data/gt_data.csv` -- still needed, for `validate_against_literature.py`
+   and `build_corrections.py` to regenerate `corrections_fafb.csv` and the
+   1,390/18 totals against the fix above. Public source:
+   github.com/flyconnectome/drosophila_neurotransmitters (also archived on
+   Zenodo, DOI 10.5281/zenodo.20818142). Not fetched here: no network
+   access in this environment to pull external files into the repo.
+
+Once both `data/merged_annotations.csv` and `data/gt_data.csv` are in
+place: `python run_pipeline.py` should regenerate everything end to end,
+correctly, in one pass.
+
 ## R1-6/R7/R8 resolved against real MCNS data; two earlier hypotheses were wrong
 
 Real `data_mcns/neurons.csv` (Codex, MCNS v1.0, "Neuron Attributes") became
