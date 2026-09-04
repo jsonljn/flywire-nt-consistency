@@ -75,10 +75,10 @@ if ENTROPY_RAW.exists():
 # ── Three patterns ──
 if THREE_PATTERNS.exists():
     tp = pd.read_csv(THREE_PATTERNS)
-    check("20 flagged cell types in three_patterns", len(tp) == 20, f"got {len(tp)}")
+    check("21 flagged cell types in three_patterns", len(tp) == 21, f"got {len(tp)}")
     check(
-        "Pattern 1 includes R7, R8, Lai",
-        set(tp[tp["pattern"] == "categorical_blindspot_HIST"]["fafb_cell_type"]) >= {"R7", "R8", "Lai"},
+        "Pattern 1 includes R7, R8, Lai, R1-6",
+        set(tp[tp["pattern"] == "categorical_blindspot_HIST"]["fafb_cell_type"]) >= {"R7", "R8", "Lai", "R1-6"},
     )
     check(
         "Pattern 2 has 10 ORN types",

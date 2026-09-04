@@ -1,5 +1,42 @@
 # Changelog
 
+## Full regeneration against real FAFB + MCNS data; R1-6 confirmed present
+
+Follow-up to both entries below. Real FAFB data became available
+(`data/neurons.csv`, `cell_types.csv`, `classification.csv`; Codex FAFB
+v783, 139,256 rows, matching this project's own cited 139,255-neuron count
+exactly), closing the `results/entropy_raw_n10.csv` gap that blocked the
+previous attempt.
+
+Ran, in order: `merge_data.py` -> `analysis.py data/merged_annotations.csv`
+(n>=20) -> `analysis.py data/merged_annotations.csv --min-members 10`
+(n>=10, produces the previously-missing `entropy_raw_n10.csv`) ->
+`full_histamine_scan.py` -> `histamine_pattern_check.py` ->
+`general_scan_n10.py` -> `three_patterns_summary.py` -> `signature_scan.py`.
+All ran clean against real data on both sides.
+
+Confirmed directly, this time in the actual committed result files, not
+just a live test: R1-6 appears in `results/general_scan_n10_full.csv` and
+`results/three_confusion_patterns.csv`, n=4,090, 81.9% ACH, MCNS confirms
+750/750 HIST, alongside R7, R8, and Lai (Pattern 1, 4 types total).
+`results/three_confusion_patterns.csv` now correctly totals 21 flagged
+types (4 + 10 ORN + 7 Dm), not 20. `validate_results.py` had the old count
+(20) and an incomplete Pattern-1 membership check (R7/R8/Lai only, not
+R1-6) hardcoded; both were stale in the same way the pipeline itself was,
+and are fixed alongside it. 25/25 checks pass, 41/41 tests pass.
+
+One mistake made and caught during this run: the MCNS "Connections
+(Filtered)" file was briefly, incorrectly copied to `data/connections.csv`
+(FAFB's slot) before its root-ID range was re-checked and it was removed.
+Nothing downstream had read it yet, so no corruption resulted. `data/connections.csv` (real FAFB synapse-level connectivity) is still not present; `connectivity_comparison.py` / `connectivity_plots.py` were not re-run.
+
+Not regenerated: `corrections_fafb.csv` and the 1,390/18 totals, which
+need `data/gt_data.csv` on top of everything above.
+`validate_against_literature.py` confirmed this is still the sole
+remaining blocker. Once available: `python validate_against_literature.py`
+then `python build_corrections.py` (and `build_signature_corrections.py`
+for the hDeltaK/TmY16 side) should complete it.
+
 ## Verified fix not propagated to committed results; two more blockers found
 
 Follow-up to the entry below. The ExR7/ExR8 fix is real and verified live
