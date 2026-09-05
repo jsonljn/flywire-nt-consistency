@@ -49,9 +49,14 @@ novel = scored[scored["is_novel_candidate"]].copy()
 novel["verified_set"] = novel["gt_verified_nt"].map(parse_verified_nts)
 has_lit = novel["verified_set"].map(bool)
 confirmed = novel[has_lit].copy()
-confirmed["needs_correction"] = confirmed.apply(
-    lambda r: prediction_needs_correction(r["dominant_nt"], r["verified_set"]), axis=1
-)
+if len(confirmed):
+    confirmed["needs_correction"] = confirmed.apply(
+        lambda r: prediction_needs_correction(r["dominant_nt"], r["verified_set"]), axis=1
+    )
+else:
+    # Same pandas .apply(axis=1) empty-frame edge case fixed in
+    # build_signature_corrections.py; see CHANGELOG.
+    confirmed["needs_correction"] = pd.Series(dtype=bool)
 
 counts = pd.Series({
     "Genuine correction\n(literature disagrees\nwith FAFB)": int(confirmed["needs_correction"].sum()),
