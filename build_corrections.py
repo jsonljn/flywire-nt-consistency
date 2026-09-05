@@ -138,7 +138,10 @@ for fafb_ct, mcns_name in mcns_types_checked:
     if fafb_ct != mcns_name:
         print(f"  {fafb_ct} (FAFB) -> {mcns_name} (MCNS)")
 
-mcns_corrections_df = pd.DataFrame(mcns_corrections)
+mcns_corrections_df = pd.DataFrame(mcns_corrections, columns=[
+    "root_id", "cell_type", "matched_fafb_type", "current_predicted_nt",
+    "verified_nt", "evidence_source", "evidence_confidence", "pattern", "proposed_action",
+])
 print(f"MCNS: {len(mcns_corrections_df)} individual neuron corrections proposed")
 if len(mcns_corrections_df) > 0:
     print(mcns_corrections_df["cell_type"].value_counts())

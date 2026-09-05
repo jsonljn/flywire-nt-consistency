@@ -14,7 +14,7 @@ A follow-up method, **confusion-signature matching**, shows why entropy alone is
 
 Regenerating the pipeline against real data required both real MCNS (`data_mcns/neurons.csv`, Codex MCNS v1.0) and real FAFB (`data/neurons.csv`, `cell_types.csv`, `classification.csv`, Codex FAFB v783, 139,256 rows, matching this project's own cited neuron count exactly). With both in place: `merge_data.py` -> `analysis.py` (both n>=20 and n>=10, closing the previously-missing `results/entropy_raw_n10.csv` gap) -> `full_histamine_scan.py` -> `histamine_pattern_check.py` -> `general_scan_n10.py` -> `three_patterns_summary.py` -> `signature_scan.py` all re-run clean. Confirmed directly: R1-6 now appears in `results/general_scan_n10_full.csv` and `results/three_confusion_patterns.csv` exactly as documented (n=4,090, 81.9% ACH, MCNS confirms 750/750 HIST), alongside R7, R8, and Lai. `results/three_confusion_patterns.csv` now correctly lists 21 flagged types (4 histamine-blindspot + 10 ORN + 7 Dm), not 20; `validate_results.py`'s own hardcoded expectation was stale in the same way the pipeline was and has been corrected alongside it. 25/25 checks pass, 41/41 tests pass.
 
-Still not regenerated: `corrections_fafb.csv` and the 1,390/18 totals, which additionally need `data/gt_data.csv` (literature ground truth; public on GitHub/Zenodo, not fetched here, no network access from this environment to pull external files in). That is the one remaining gap; see CHANGELOG for exact instructions once that file is available.
+Now fully regenerated, including `corrections_fafb.csv`: real `data/gt_data.csv` (flyconnectome/drosophila_neurotransmitters) became available, closing the last gap. `validate_against_literature.py` -> `build_corrections.py` re-run clean: 19 literature-confirmed types, 1 contradicted (Lai), 3 unconfirmed (Dm16/Dm20/Dm6). Final: **5,480 FAFB corrections across 19 types, 32 MCNS corrections across 2 types** (Dm9, hDeltaK), dramatically more than the 1,390/18 cited earlier in this project's history, entirely because R1-6 (4,090 neurons, alone more than triple the old total) had never actually been counted before. See "Deliverable" and CHANGELOG for the full accounting.
 
 Also worth noting: this repo's own instructions and citations say MCNS v0.9 throughout; the Codex download used to verify this fix was MCNS v1.0. Whether v0.9 exhibited the same ExR7/ExR8 contamination, or whether R1-6's naming specifically changed between versions, was not checked; the fix itself (removing an incorrect entry from a hardcoded dict) is correct regardless of version.
 
@@ -197,11 +197,11 @@ Every candidate above was cross-checked against the literature-curated ground tr
 
 | Outcome | Count | Cell types |
 |---|---|---|
-| Confirmed by literature | 18 | R7, R8, 10 ORN types, Dm12, Dm19, Dm1, Dm9, hDeltaK, TmY16 |
+| Confirmed by literature | 19 | R7, R8, R1-6, 10 ORN types, Dm12, Dm19, Dm1, Dm9, hDeltaK, TmY16 |
 | Contradicted by literature (excluded) | 1 | Lai (MCNS said histamine; literature/Davis et al. 2020 verifies glutamate, confidence 4/5) |
 | No literature match (unconfirmed, not corrected) | 3 | Dm16, Dm20, Dm6 |
 
-**R1-6 is not literature-confirmed through this table.** It's confirmed through the MCNS + literature evidence under "Headline result" above, not through `validate_against_literature.py`'s literature-database match (no `gt_data.csv` entry exists for it specifically). `data/gt_data.csv` is the one remaining piece needed to regenerate this table (and `corrections_fafb.csv`) against the ExR7/ExR8 fix; see "Headline result" and CHANGELOG.
+**R1-6 is now literature-confirmed through this table too.** With real `data/gt_data.csv` in place, `validate_against_literature.py` matches R1-6 by exact name against the ground-truth database directly (`matched_with_verified_nt`, HIST, confidence 4.0), the same route R7 and R8 use, not a special case. See "Headline result" for the full history of why this took multiple sessions to reach.
 
 The Lai exclusion is a real finding in its own right: MCNS's own classifier appears to be wrong for this specific type, which is exactly the kind of error this literature cross-check is designed to catch before it turns into a bad correction.
 
@@ -215,8 +215,8 @@ R8 is confirmed as a genuine co-transmitter (ACH **and** histamine both verified
 
 | Dataset | Neurons flagged | Cell types covered |
 |---|---|---|
-| FAFB | 1,390 | 18 |
-| MCNS | 4 | 1 (ExR7, a related subtype not part of the original 18) |
+| FAFB | 5,480 | 19 |
+| MCNS | 32 | 2 (Dm9, hDeltaK) |
 
 `corrections/excluded_unconfirmed_candidates.csv` lists the 4 excluded/unconfirmed types for transparency, so nothing is silently dropped.
 
@@ -247,4 +247,4 @@ Eckstein, N. et al. Neurotransmitter classification from electron microscopy ima
 
 corrections_fafb_scored.csv and corrections_mcns_scored.csv rank every correction by a suspicion score combining classifier confidence (E1) with evidence against the correct answer (E2, where computable). See suspicion_score.py / suspicion_score_mcns.py.
 
-Final count: 1,390 FAFB corrections across 18 cell types, as committed. This number predates the ExR7/ExR8 fix above and has not been regenerated: `corrections_fafb.csv` needs `data/gt_data.csv` (literature ground truth) to rebuild via `validate_against_literature.py` -> `build_corrections.py`, not available in this environment. Everything upstream of that has been regenerated against real data and directly verified: R1-6, R7, R8, and Lai all now resolve correctly and appear in `results/general_scan_n10_full.csv` / `results/three_confusion_patterns.csv`. 25/25 `validate_results.py` checks pass; `tests/test_core.py` passes in full (see file for current count).
+Final count: 5,480 FAFB corrections across 19 cell types, 32 MCNS corrections across 2 types (Dm9, hDeltaK), fully regenerated against real FAFB + MCNS data with the ExR7/ExR8 fix and real `data/gt_data.csv` in place. This is dramatically different from the 1,390/18 cited earlier in this project's history, not because the underlying science changed, but because R1-6 (4,090 neurons) had never actually been counted before; the ExR7/ExR8 bug kept it out of every prior total. Dm9, hDeltaK, and TmY16 remain hand-added (no `gt_data.csv` entry exists for them; see "Session update" below), same as always, now cleanly integrated: adding them to `results/literature_validated_candidates.csv` let `build_corrections.py` pick them up automatically on both the FAFB and MCNS sides, rather than needing a second manual patch. 25/25 `validate_results.py` checks pass; `tests/test_core.py` passes in full (41/41 at time of writing).

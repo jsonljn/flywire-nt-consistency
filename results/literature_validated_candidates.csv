@@ -1,23 +1,24 @@
-fafb_cell_type,pattern,fafb_dominant_nt_wrong,mcns_says,gt_matched_name,gt_match_method,gt_verified_present,gt_verified_absent,gt_confidence,gt_sources,literature_status,literature_verified_nt,agrees_with_literature
-R7,categorical_blindspot_HIST,GLUT,HIST,R7,exact_case_insensitive,{'HIST'},set(),4.0,"Davis et al., 2020",matched_with_verified_nt,HIST,True
-R8,categorical_blindspot_HIST,ACH,HIST,R8,exact_case_insensitive,"{'ACH', 'HIST'}",set(),5.0,"Davis et al., 2020; Sarthy 1991",matched_with_verified_nt,"ACH,HIST",True
-Lai,categorical_blindspot_HIST,GABA,HIST,Lai,exact_case_insensitive,{'GLUT'},"{'ACH', 'GABA'}",4.0,"Davis et al., 2020",matched_with_verified_nt,GLUT,False
-ORN_V,ORN_SER_confusion,SER,ACH,ORN_V,exact_case_insensitive,{'ACH'},set(),5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",matched_with_verified_nt,ACH,True
-ORN_VM3,ORN_SER_confusion,SER,ACH,ORN_VM3,exact_case_insensitive,{'ACH'},set(),5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",matched_with_verified_nt,ACH,True
-ORN_VA2,ORN_SER_confusion,SER,ACH,ORN_VA2,exact_case_insensitive,{'ACH'},set(),5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",matched_with_verified_nt,ACH,True
-ORN_DA3,ORN_SER_confusion,SER,ACH,ORN_DA3,exact_case_insensitive,{'ACH'},set(),5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",matched_with_verified_nt,ACH,True
-ORN_DA4m,ORN_SER_confusion,SER,ACH,ORN_DA4m,exact_case_insensitive,{'ACH'},set(),5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",matched_with_verified_nt,ACH,True
-ORN_DA4l,ORN_SER_confusion,SER,ACH,ORN_DA4l,exact_case_insensitive,{'ACH'},set(),5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",matched_with_verified_nt,ACH,True
-ORN_DM2,ORN_SER_confusion,SER,ACH,ORN_DM2,exact_case_insensitive,{'ACH'},set(),5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",matched_with_verified_nt,ACH,True
-ORN_DM3,ORN_SER_confusion,SER,ACH,ORN_DM3,exact_case_insensitive,{'ACH'},set(),5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",matched_with_verified_nt,ACH,True
-ORN_DL4,ORN_SER_confusion,SER,ACH,ORN_DL4,exact_case_insensitive,{'ACH'},set(),5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",matched_with_verified_nt,ACH,True
-ORN_DL3,ORN_SER_confusion,SER,ACH,ORN_DL3,exact_case_insensitive,{'ACH'},set(),5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",matched_with_verified_nt,ACH,True
-Dm12,Dm_GLUT_confusion,GABA,GLUT,Dm12,exact_case_insensitive,{'GLUT'},"{'ACH', 'GABA'}",4.0,"Davis et al., 2020",matched_with_verified_nt,GLUT,True
+fafb_cell_type,pattern,fafb_dominant_nt_wrong,mcns_says,gt_matched_name,gt_match_method,gt_confidence,gt_sources,gt_verified_present,gt_verified_absent,literature_status,literature_verified_nt,agrees_with_literature
+R7,categorical_blindspot_HIST,GLUT,HIST,R7,exact_case_insensitive,4.0,"Davis et al., 2020",HIST,,matched_with_verified_nt,HIST,True
+R8,categorical_blindspot_HIST,ACH,HIST,R8,exact_case_insensitive,5.0,"Davis et al., 2020; Sarthy 1991","ACH,HIST",,matched_with_verified_nt,"ACH,HIST",True
+Lai,categorical_blindspot_HIST,GABA,HIST,Lai,exact_case_insensitive,4.0,"Davis et al., 2020",GLUT,"ACH,GABA",matched_with_verified_nt,GLUT,False
+R1-6,categorical_blindspot_HIST,ACH,HIST,R1-6,exact_case_insensitive,4.0,"Davis et al., 2020",HIST,,matched_with_verified_nt,HIST,True
+ORN_V,ORN_SER_confusion,SER,ACH,ORN_V,exact_case_insensitive,5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",ACH,,matched_with_verified_nt,ACH,True
+ORN_VM3,ORN_SER_confusion,SER,ACH,ORN_VM3,exact_case_insensitive,5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",ACH,,matched_with_verified_nt,ACH,True
+ORN_VA2,ORN_SER_confusion,SER,ACH,ORN_VA2,exact_case_insensitive,5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",ACH,,matched_with_verified_nt,ACH,True
+ORN_DA3,ORN_SER_confusion,SER,ACH,ORN_DA3,exact_case_insensitive,5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",ACH,,matched_with_verified_nt,ACH,True
+ORN_DA4m,ORN_SER_confusion,SER,ACH,ORN_DA4m,exact_case_insensitive,5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",ACH,,matched_with_verified_nt,ACH,True
+ORN_DA4l,ORN_SER_confusion,SER,ACH,ORN_DA4l,exact_case_insensitive,5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",ACH,,matched_with_verified_nt,ACH,True
+ORN_DM2,ORN_SER_confusion,SER,ACH,ORN_DM2,exact_case_insensitive,5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",ACH,,matched_with_verified_nt,ACH,True
+ORN_DM3,ORN_SER_confusion,SER,ACH,ORN_DM3,exact_case_insensitive,5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",ACH,,matched_with_verified_nt,ACH,True
+ORN_DL4,ORN_SER_confusion,SER,ACH,ORN_DL4,exact_case_insensitive,5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",ACH,,matched_with_verified_nt,ACH,True
+ORN_DL3,ORN_SER_confusion,SER,ACH,ORN_DL3,exact_case_insensitive,5.0,"Carlsson et al., 2010; Yasuyama et al. 1999",ACH,,matched_with_verified_nt,ACH,True
+Dm12,Dm_GLUT_confusion,GABA,GLUT,Dm12,exact_case_insensitive,4.0,"Davis et al., 2020",GLUT,"ACH,GABA",matched_with_verified_nt,GLUT,True
 Dm16,Dm_GLUT_confusion,GABA,GLUT,,,,,,,no_match_found,,
 Dm20,Dm_GLUT_confusion,GABA,GLUT,,,,,,,no_match_found,,
-Dm19,Dm_GLUT_confusion,GABA,GLUT,Dm19,exact_case_insensitive,{'GLUT'},"{'ACH', 'GABA'}",4.0,"Nern et al., 2024",matched_with_verified_nt,GLUT,True
-Dm1,Dm_GLUT_confusion,GABA,GLUT,Dm1,exact_case_insensitive,{'GLUT'},"{'ACH', 'GABA'}",4.0,"Davis et al., 2020",matched_with_verified_nt,GLUT,True
+Dm19,Dm_GLUT_confusion,GABA,GLUT,Dm19,exact_case_insensitive,4.0,"Nern et al., 2024",GLUT,"ACH,GABA",matched_with_verified_nt,GLUT,True
+Dm1,Dm_GLUT_confusion,GABA,GLUT,Dm1,exact_case_insensitive,4.0,"Davis et al., 2020",GLUT,"ACH,GABA",matched_with_verified_nt,GLUT,True
 Dm6,Dm_GLUT_confusion,GABA,GLUT,,,,,,,no_match_found,,
 Dm9,Dm_GLUT_confusion,ACH,GLUT,,,,,,,confirmed_via_manual_direct_search (not in gt_data.csv aggregator),GLUT,True
-hDeltaK,ORN_SER_confusion,SER,ACH,N/A -- signature scan + manual search,manual,{'ACH'},set(),3.0,"Wolff et al., 2024 (bioRxiv)/2025 eLife RP104764, EASI-FISH",confirmed_via_signature_scan_and_manual_search,ACH,True
-TmY16,Dm_GLUT_confusion,GABA,GLUT,N/A -- signature scan + manual search,manual,{'GLUT'},set(),3.0,"Nern et al., 2024 (bioRxiv)/2025 Nature 641:1225-1237, EASI-FISH",confirmed_via_signature_scan_and_manual_search,GLUT,True
+hDeltaK,ORN_SER_confusion,SER,N/A -- signature scan + manual search,,manual,,,,,confirmed_via_signature_scan_and_manual_search,ACH,True
+TmY16,Dm_GLUT_confusion,GABA,N/A -- signature scan + manual search,,manual,,,,,confirmed_via_signature_scan_and_manual_search,GLUT,True

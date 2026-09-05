@@ -96,7 +96,7 @@ if LITERATURE_VALIDATED.exists():
     excluded = lv[lv["agrees_with_literature"] == False]
     unconfirmed = lv[lv["literature_status"] == "no_match_found"]
 
-    check("18 literature-confirmed types", len(confirmed) == 18, f"got {len(confirmed)}")
+    check("19 literature-confirmed types", len(confirmed) == 19, f"got {len(confirmed)}")
     check("1 literature-contradicted type (Lai)", len(excluded) == 1 and excluded.iloc[0]["fafb_cell_type"] == "Lai")
     check("3 unconfirmed types", len(unconfirmed) == 3, f"got {len(unconfirmed)}")
 
@@ -105,8 +105,8 @@ fafb_corr = CORRECTIONS / "corrections_fafb.csv"
 mcns_corr = CORRECTIONS / "corrections_mcns.csv"
 if fafb_corr.exists():
     fc = pd.read_csv(fafb_corr)
-    check("1390 FAFB neuron corrections", len(fc) == 1390, f"got {len(fc)}")
-    check("18 cell types in FAFB corrections", fc["cell_type"].nunique() == 18, f"got {fc['cell_type'].nunique()}")
+    check("5480 FAFB neuron corrections", len(fc) == 5480, f"got {len(fc)}")
+    check("19 cell types in FAFB corrections", fc["cell_type"].nunique() == 19, f"got {fc['cell_type'].nunique()}")
     if "R8" in fc["cell_type"].values:
         r8_wrong = fc[fc["cell_type"] == "R8"]
         check(
@@ -116,7 +116,7 @@ if fafb_corr.exists():
         )
 if mcns_corr.exists():
     mc = pd.read_csv(mcns_corr)
-    check("4 MCNS neuron corrections", len(mc) == 4, f"got {len(mc)}")
+    check("32 MCNS neuron corrections", len(mc) == 32, f"got {len(mc)}")
 
 # ── Connectivity ──
 if CONNECTIVITY_SUMMARY.exists():

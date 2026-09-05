@@ -1,5 +1,66 @@
 # Changelog
 
+## Full literature cross-check complete; true final total is 5,480/19, not 1,390/18
+
+Follow-up to the entry below. Real `data/gt_data.csv` became available
+(flyconnectome/drosophila_neurotransmitters, via GitHub, matching the
+public Zenodo archive DOI 10.5281/zenodo.20818142), the one remaining
+blocker. Ran `validate_against_literature.py` -> `build_corrections.py`
+clean against it.
+
+Two bugs found and fixed along the way, both pre-existing, unrelated to
+MCNS matching:
+
+1. `build_signature_corrections.py` crashed (`Cannot set a DataFrame with
+   multiple columns to a single column`) when zero novel candidates have a
+   `gt_data.csv` match. `.apply(axis=1)` on a 0-row frame can return a
+   DataFrame instead of a Series in pandas; guarded explicitly. Confirmed
+   this is exactly what happens for every one of signature_scan.py's 28
+   novel candidates, including hDeltaK and TmY16: none are in the curated
+   database, which is exactly why they needed direct literature search in
+   the first place.
+2. `build_corrections.py` wrote a 1-byte, headerless
+   `corrections_mcns.csv` when zero MCNS corrections exist
+   (`pd.DataFrame([])` has no columns), which crashes any later
+   `pd.read_csv` on it, including `validate_results.py`. Fixed by
+   specifying columns explicitly even for the empty case.
+
+Dm9, hDeltaK, and TmY16 were added the same way they always have been
+(direct literature search, not in `gt_data.csv`), but this time added
+directly to `results/literature_validated_candidates.csv` rather than
+patched into `corrections_fafb.csv` afterward. That let
+`build_corrections.py` pick them up through its normal logic on *both*
+the FAFB and MCNS sides, rather than needing a second manual step per
+dataset: it found `corrections_mcns.csv` should include 32 neurons across
+Dm9 and hDeltaK too (0 before), a benefit the earlier, cruder patch
+approach would have missed entirely. Also caught this way: Dm9's true
+FAFB count is 179 (matches the number cited throughout this project's
+history exactly), not 178; a first manual attempt at this, computed by
+hand before realizing the cleaner integration was possible, filtered only
+ACH-predicted rows and missed one GABA-predicted row that also needed
+correcting.
+
+**True final numbers:** 5,480 FAFB corrections across 19 cell types
+(R7, R8, R1-6, 10 ORN types, Dm12, Dm19, Dm1, Dm9, hDeltaK, TmY16); 32 MCNS
+corrections across 2 types (Dm9, hDeltaK); 19 literature-confirmed, 1
+contradicted (Lai), 3 unconfirmed (Dm16, Dm20, Dm6). `validate_results.py`
+hardcoded 1,390/18/4 in three places; all three were stale in the same way
+the pipeline was, and are corrected alongside it (5,480/19/32). 25/25
+checks pass, 41/41 tests pass.
+
+**Why the number moved so much:** not because the science changed. R1-6
+alone is 4,090 neurons, more than triple the entire old 1,390 total by
+itself, and it had never actually been included in any total cited
+anywhere in this project's history, not 1,118, not 1,297, not 1,390,
+because of the ExR7/ExR8 bug (see entries below). This is the first time
+the full pipeline has been run against complete real data end to end.
+
+**Downstream consequence worth flagging:** any presentation, script, or
+document built from the old 1,390/18 figure (including material already
+delivered based on this repo earlier in this project's history) now
+understates the actual result substantially, and should be updated to
+5,480/19 if still in use.
+
 ## Full regeneration against real FAFB + MCNS data; R1-6 confirmed present
 
 Follow-up to both entries below. Real FAFB data became available

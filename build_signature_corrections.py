@@ -39,9 +39,15 @@ def build_signature_scan_corrections() -> pd.DataFrame:
     has_lit = novel["verified_set"].map(bool)
 
     confirmed = novel[has_lit].copy()
-    confirmed["needs_correction"] = confirmed.apply(
-        lambda r: prediction_needs_correction(r["dominant_nt"], r["verified_set"]), axis=1
-    )
+    if len(confirmed):
+        confirmed["needs_correction"] = confirmed.apply(
+            lambda r: prediction_needs_correction(r["dominant_nt"], r["verified_set"]), axis=1
+        )
+    else:
+        # pandas .apply(axis=1) on a 0-row frame can return a DataFrame
+        # instead of a Series, breaking the assignment above. Nothing to
+        # compute either way when there are no literature-confirmed rows.
+        confirmed["needs_correction"] = pd.Series(dtype=bool)
 
     corrections = confirmed[confirmed["needs_correction"]].copy()
     corrections["corrected_nt"] = corrections["verified_set"].map(lambda s: ",".join(sorted(s)))
