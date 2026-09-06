@@ -62,12 +62,21 @@ def main():
         print(f"  WARNING: {missing} neurons missing nt_type_score after merge")
 
     scored['E1_confident_wrongness'] = scored['nt_type_score']
-    scored['E2_evidence_for_correct'] = scored.apply(compute_e2, axis=1)
-    scored['suspicion_score'] = scored.apply(
-        lambda r: r['E1_confident_wrongness'] if pd.isna(r['E2_evidence_for_correct'])
-        else r['E1_confident_wrongness'] * (1 - r['E2_evidence_for_correct']),
-        axis=1,
-    )
+    if len(scored):
+        scored['E2_evidence_for_correct'] = scored.apply(compute_e2, axis=1)
+        scored['suspicion_score'] = scored.apply(
+            lambda r: r['E1_confident_wrongness'] if pd.isna(r['E2_evidence_for_correct'])
+            else r['E1_confident_wrongness'] * (1 - r['E2_evidence_for_correct']),
+            axis=1,
+        )
+    else:
+        # Same pandas .apply(axis=1)-on-empty-frame edge case fixed in
+        # build_signature_corrections.py and plot_calibration_comparison.py;
+        # hasn't triggered here yet since corrections_fafb.csv has always
+        # had rows, but the risk is identical if it's ever empty. See
+        # CHANGELOG.
+        scored['E2_evidence_for_correct'] = pd.Series(dtype=float)
+        scored['suspicion_score'] = pd.Series(dtype=float)
     scored['score_type'] = np.where(
         scored['E2_evidence_for_correct'].isna(),
         'categorical_blindspot (E1 only)', 'full (E1 x E2)',
