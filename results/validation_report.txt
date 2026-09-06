@@ -19,8 +19,8 @@ Failed: 0/25
 [PASS] 19 cell types in FAFB corrections — got 19
 [PASS] R8 corrections exclude ACH (co-transmitter) — 0 ACH flagged
 [PASS] 32 MCNS neuron corrections — got 32
-[PASS] R7 connectivity p < 0.001 — p=0.0
-[PASS] R8 connectivity p ~ 0.095 — p=0.0945
+[PASS] R7 connectivity p < 0.001 — p=0.0004997501249375
+[PASS] R8 connectivity p ~ 0.095 — p=0.0949525237381309
 [PASS] Signature scan includes R1-6
 [PASS] R1-6 notably closer to histamine seeds than the dataset median — R1-6 js=0.0605, dataset median=0.0968
 [PASS] ORN cluster mostly recovered via simplex and/or entropy channel — 9/10
