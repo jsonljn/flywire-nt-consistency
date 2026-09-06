@@ -1,5 +1,5 @@
-cell_type,n_labeled,n_total,entropy,dominant_nt,dominant_frac
-R7,474,1338,1.625,GLUT,0.441
-R8,475,1357,1.376,ACH,0.579
-Lai,140,140,1.239,GABA,0.5
-R1-6,4090,8456,0.853,ACH,0.819
+cell_type,n_labeled,n_total,entropy,dominant_nt,dominant_frac,mcns_match,mcns_hist_frac
+R7,1338,1338,1.625,GLUT,0.441,"R7y,R7p,R7d,R7_unclear",1.0
+R8,1357,1357,1.376,ACH,0.579,"R8y,R8p,R8d,R8_unclear",1.0
+Lai,334,334,1.239,GABA,0.5,Lai,1.0
+R1-6,8456,8456,0.853,ACH,0.819,R1-R6,1.0
