@@ -1,3 +1,5 @@
 cell_type,n_neurons,dominant_nt,corrected_nt,best_pattern,best_js,best_p_calibrated,gt_agrees_with_pattern
+TmY16,88,GABA,GLUT,Dm_GLUT_confusion,0.0011019268186994,0.006545433704972,True
+vDeltaA_b,17,SER,ACH,ORN_SER_confusion,0.0003914426102422,0.0072647702870902,True
+WEDPN6B,14,GLUT,GABA,Dm_GLUT_confusion,0.0209924581712506,0.0281571673537138,False
 hDeltaK,26,SER,ACH,ORN_SER_confusion,0.0,0.0358512734506838,True
-TmY16,67,GABA,GLUT,Dm_GLUT_confusion,0.0011019268186994,0.006545433704972,True

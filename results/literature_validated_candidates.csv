@@ -20,5 +20,3 @@ Dm19,Dm_GLUT_confusion,GABA,GLUT,Dm19,exact_case_insensitive,4.0,"Nern et al., 2
 Dm1,Dm_GLUT_confusion,GABA,GLUT,Dm1,exact_case_insensitive,4.0,"Davis et al., 2020",GLUT,"ACH,GABA",matched_with_verified_nt,GLUT,True
 Dm6,Dm_GLUT_confusion,GABA,GLUT,,,,,,,no_match_found,,
 Dm9,Dm_GLUT_confusion,ACH,GLUT,,,,,,,confirmed_via_manual_direct_search (not in gt_data.csv aggregator),GLUT,True
-hDeltaK,ORN_SER_confusion,SER,N/A -- signature scan + manual search,,manual,,,,,confirmed_via_signature_scan_and_manual_search,ACH,True
-TmY16,Dm_GLUT_confusion,GABA,N/A -- signature scan + manual search,,manual,,,,,confirmed_via_signature_scan_and_manual_search,GLUT,True

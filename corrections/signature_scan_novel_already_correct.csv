@@ -1,1 +1,4 @@
 cell_type,n_neurons,dominant_nt,gt_verified_nt,best_pattern,best_p_calibrated
+Mi15,697,ACH,"ACH,DA",histamine_blindspot,0.019550490941863
+ORN_DM5,24,ACH,ACH,ORN_SER_confusion,0.0216519862595987
+PFGs,17,SER,"ACH,SER",ORN_SER_confusion,0.0498648170489367

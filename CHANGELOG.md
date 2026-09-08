@@ -1,5 +1,72 @@
 # Changelog
 
+## README rewritten for current state; architectural fix for hDeltaK/TmY16; 2 more corrections found
+
+Prompted by a review pass flagging that the README read as a debugging
+log rather than a finished document, and several specific errors. Went
+through each claim individually rather than applying the review
+wholesale.
+
+**Confirmed and fixed:**
+- README's "Headline result" section (5 paragraphs narrating the
+  investigation) condensed to 2 paragraphs of current fact, full history
+  left in this file.
+- Internal contradiction: "Sensitivity check" section and its pattern
+  table still said 3 histamine-blindspot types (R7, R8, Lai) after
+  "Headline result" already said 4 (R1-6 included). Both now say 4.
+- Dm9: README said FAFB predicts it "99.4% ACH (178 of 179 neurons)".
+  Checked directly: all 179 are wrong (178 ACH, 1 GABA), all 179 get
+  corrected to GLUT. Fixed.
+- MCNS version: Reproducing instructions and citation said v0.9; the
+  regeneration that actually produced these numbers used v1.0 (per the
+  actual Codex download page). Fixed both.
+
+**Investigated, not applied:** the review claimed "12 of 22 Dm-numbered
+FAFB types have a gt_data.csv entry" should be "10 of 20." Checked this
+directly two ways -- a plain case-insensitive name match, and the
+project's own `find_match` (`name_matching.py`) -- both give exactly
+12 of 22 against the real `data/gt_data.csv` and `data/merged_annotations.csv`
+in this repo. Could not reproduce 10 of 20. Left the original number in
+place. If a different `gt_data.csv` snapshot was used to arrive at 10/20,
+that would explain the discrepancy, but this repo's own copy does not
+support it.
+
+**Real architectural bug found while checking the fifth point (hDeltaK/
+TmY16 metadata):** the review was right that `gt_data.csv` has real
+entries for both (confidence 4, Wolff et al. 2024 / Nern et al. 2024),
+but the actual cause was bigger than stale metadata. `signature_scan.py`
+had simply never been re-run after `data/gt_data.csv` became available
+in an earlier session, so its `gt_verified_nt` column was still all-NaN
+for every novel candidate, hDeltaK and TmY16 included. That's also why
+they'd been hand-added directly into `corrections_fafb.csv`, which turned
+out to be architecturally wrong on top of that: this project's own
+design (documented in `build_signature_corrections.py`'s docstring) keeps
+geometry-found candidates in `corrections_signature_scan_novel.csv`,
+separate from the name-matched `corrections_fafb.csv`, on purpose. Fixed
+by removing both from `corrections_fafb.csv` / `literature_validated_candidates.csv`
+and re-running `signature_scan.py` -> `build_signature_corrections.py`
+properly.
+
+That re-run surfaced 2 more genuine corrections neither this session nor
+the review had found: **vDeltaA_b** (17 neurons, SER predicted, ACH
+verified) and **WEDPN6B** (14 neurons, GLUT predicted, GABA verified).
+`corrections_signature_scan_novel.csv` now correctly holds 4 types, not 2.
+
+**Numbers changed by this fix:** `corrections_fafb.csv` 5,480/19 ->
+5,387/17 (hDeltaK and TmY16's 93 neurons moved to where they belong).
+`corrections_mcns.csv` 32/2 -> 1/1 (hDeltaK's 31 MCNS neurons left with
+it). `validate_results.py`'s hardcoded expectations updated to match.
+Also regenerated and corrected in the README: the suspicion-score
+mean/count stats (`corrections_fafb_scored.csv` changed shape too), the
+ORN/Dm signature-scan recovery counts (9/10 and 3/3, not 7-8/9 and 2/2,
+now that `entropy_raw_n10.csv` exists and the recovery check runs against
+702 types not 402), and two R7/R8 z-scores in the FAFB-only results table
+(7.55/3.47, not 7.80/3.55) caught while independently re-verifying every
+numeric table against real regenerated data rather than assuming the
+review's list was exhaustive.
+
+25/25 checks, 41/41 tests.
+
 ## Full literature cross-check complete; true final total is 5,480/19, not 1,390/18
 
 Follow-up to the entry below. Real `data/gt_data.csv` became available
