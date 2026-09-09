@@ -1,4 +1,3 @@
-# Temporary runner: generate signature_scan.csv without Python.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $root) { $root = Get-Location }

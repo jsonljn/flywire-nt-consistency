@@ -1,10 +1,6 @@
-"""
-NT probability simplex utilities.
+"""Compute entropy and distances between neurotransmitter probability vectors.
 
-Cell types are points on the 6-simplex of FAFB classifier outputs
-(ACH, GABA, GLUT, DA, SER, OCT). Distance on this simplex is the right
-geometry for "does this type look like a known confusion fingerprint?"
-— which entropy (a scalar) cannot answer.
+FAFB profiles contain six categories: ACH, GABA, GLUT, DA, SER, and OCT.
 """
 from __future__ import annotations
 
@@ -15,7 +11,7 @@ from typing import Iterable
 
 import numpy as np
 
-# FAFB classifier output categories (histamine is not among them)
+# FAFB prediction categories exclude histamine.
 NT_ORDER = ("ACH", "GABA", "GLUT", "DA", "SER", "OCT")
 FAST_TRANSMITTERS = ("ACH", "GABA", "GLUT")
 MONOAMINES = ("DA", "SER", "OCT")
@@ -97,11 +93,9 @@ def _kl_batch(A: np.ndarray, B: np.ndarray, eps: float) -> np.ndarray:
 
 
 def batch_js_divergence(P: np.ndarray, q: np.ndarray, eps: float = 1e-12) -> np.ndarray:
-    """
-    Vectorized Jensen-Shannon divergence (bits): each row of P (shape (B, K))
-    against a single reference q (shape (K,)). Numerically identical to
-    calling `js_divergence(row, q)` for each row -- see
-    tests/test_core.py::TestNtSimplex::test_batch_matches_scalar.
+    """Compute Jensen-Shannon divergence in bits between each row of P and q.
+
+    P has shape (B, K); q has shape (K,). Results match row-wise scalar evaluation.
     """
     P = np.clip(np.asarray(P, dtype=np.float64), 0.0, None)
     P = P / np.maximum(P.sum(axis=1, keepdims=True), eps)

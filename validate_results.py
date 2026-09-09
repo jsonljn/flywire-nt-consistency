@@ -1,8 +1,4 @@
-"""
-Validate key README claims against saved result files.
-
-Run after the pipeline completes (or on existing results) to catch regressions.
-"""
+"""Validate documented results against saved analysis outputs."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -39,7 +35,6 @@ print("=" * 70)
 print("VALIDATION REPORT")
 print("=" * 70)
 
-# ── Entropy screen (n>=20) ──
 if ENTROPY_CORRECTED.exists():
     ec = pd.read_csv(ENTROPY_CORRECTED)
     n_types = len(ec)
@@ -72,7 +67,6 @@ if ENTROPY_RAW.exists():
     )
     check("FAFB predicts zero HIST at type level", not hist_in_fafb, "HIST found in distributions")
 
-# ── Three patterns ──
 if THREE_PATTERNS.exists():
     tp = pd.read_csv(THREE_PATTERNS)
     check("21 flagged cell types in three_patterns", len(tp) == 21, f"got {len(tp)}")
@@ -89,7 +83,6 @@ if THREE_PATTERNS.exists():
         (tp["pattern"] == "Dm_GLUT_confusion").sum() == 7,
     )
 
-# ── Literature validation ──
 if LITERATURE_VALIDATED.exists():
     lv = pd.read_csv(LITERATURE_VALIDATED)
     confirmed = lv[lv["agrees_with_literature"] == True]
@@ -100,7 +93,6 @@ if LITERATURE_VALIDATED.exists():
     check("1 literature-contradicted type (Lai)", len(excluded) == 1 and excluded.iloc[0]["fafb_cell_type"] == "Lai")
     check("3 unconfirmed types", len(unconfirmed) == 3, f"got {len(unconfirmed)}")
 
-# ── Corrections ──
 fafb_corr = CORRECTIONS / "corrections_fafb.csv"
 mcns_corr = CORRECTIONS / "corrections_mcns.csv"
 if fafb_corr.exists():
@@ -118,7 +110,6 @@ if mcns_corr.exists():
     mc = pd.read_csv(mcns_corr)
     check("1 MCNS neuron correction", len(mc) == 1, f"got {len(mc)}")
 
-# ── Connectivity ──
 if CONNECTIVITY_SUMMARY.exists():
     cs = pd.read_csv(CONNECTIVITY_SUMMARY)
     r7 = cs[cs["cell_type"] == "R7"].iloc[0]
@@ -126,14 +117,11 @@ if CONNECTIVITY_SUMMARY.exists():
     check("R7 connectivity p < 0.001", r7["p_value"] < 0.001, f"p={r7['p_value']}")
     check("R8 connectivity p ~ 0.095", 0.05 < r8["p_value"] < 0.15, f"p={r8['p_value']}")
 
-# ── Signature scan ──
 if SIGNATURE_SCAN.exists():
     ss = pd.read_csv(SIGNATURE_SCAN)
     r16 = ss[ss["cell_type"] == "R1-6"]
     check("Signature scan includes R1-6", len(r16) == 1)
-    # R1-6 has a negative entropy z-score but is geometrically close to
-    # histamine seeds. Check this relative distance without requiring formal
-    # significance from its borderline calibrated result.
+    # Evaluate R1-6 proximity without requiring formal significance.
     if len(r16):
         check(
             "R1-6 notably closer to histamine seeds than the dataset median",
@@ -154,7 +142,6 @@ if SIGNATURE_SCAN.exists():
         f"{report['Dm_GLUT_confusion']['n_recovered']}/{report['Dm_GLUT_confusion']['n_seeds']}",
     )
 
-    # Candidate prevalence should remain a small fraction of scored types.
     novel_fraction = ss["is_novel_candidate"].mean()
     check(
         "Novel-candidate fraction is between 1% and 15%",
@@ -166,7 +153,6 @@ if CONFIRMED_HISTAMINERGIC_SUMMARY.exists():
     check("4 MCNS histamine comparison types", len(ch) == 4, f"got {len(ch)}")
     check("Includes R1-6", "R1-6" in ch["cell_type"].values)
 
-# ── Write report ──
 n_pass = sum(1 for _, ok, _ in checks if ok)
 n_fail = sum(1 for _, ok, _ in checks if not ok)
 summary = [

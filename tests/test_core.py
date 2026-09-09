@@ -55,17 +55,14 @@ class TestNameMatching:
 
 class TestMcnsMatching:
     def test_range_notation(self):
-        # Range normalization maps the abbreviated FAFB name to the full range.
         names = ["R1-R6", "R7y", "R7p", "Dm1", "Dm12", "Dm1a"]
         assert resolve_fafb_to_mcns("R1-6", names) == (["R1-R6"], "range_notation")
 
     def test_r1_6_matches_combined_range_name(self):
-        # R1-6 uses range notation without a photoreceptor subtype group.
         combined_name = ["R1-R6", "R7y", "R7p"]
         assert resolve_fafb_to_mcns("R1-6", combined_name) == (["R1-R6"], "range_notation")
 
     def test_exr7_exr8_excluded_from_r7_r8_subtype_groups(self):
-        # Extrinsic Ring neurons must not contaminate photoreceptor subtype counts.
         from mcns_matching import EXPLICIT_SUBTYPE_GROUPS
         assert "ExR7" not in EXPLICIT_SUBTYPE_GROUPS["R7"]
         assert "ExR8" not in EXPLICIT_SUBTYPE_GROUPS["R8"]
@@ -146,7 +143,6 @@ class TestStratifiedNull:
         assert row["z_score"] > 0
 
     def test_bincount_matches_add_at(self):
-        """Vectorized bincount and indexed accumulation produce identical counts."""
         rng = np.random.default_rng(3)
         n_types, n_nt, n = 50, 6, 5000
         type_codes = rng.integers(0, n_types, size=n)
@@ -181,8 +177,6 @@ class TestNtSimplex:
         np.testing.assert_allclose(got, expected, atol=1e-12)
 
     def test_batch_js_divergence_matches_scalar(self):
-        """batch_js_divergence must agree with js_divergence row-by-row -- the
-        exact calibration test in signature_calibration.py relies on this."""
         rng = np.random.default_rng(0)
         seed = np.array([0.5, 0.3, 0.1, 0.05, 0.03, 0.02])
         P = rng.dirichlet(np.ones(6), size=25)
@@ -192,45 +186,33 @@ class TestNtSimplex:
 
 
 class TestExactPValue:
-    """signature_calibration.exact_p_value in isolation, no seed-geometry
-    fixture needed -- see that module's docstring for the "needs a
-    reasonably large M" caveat this directly tests."""
+    """Test reference-pool probabilities and continuity correction."""
 
     def test_nothing_close_gives_high_p(self):
-        pool = np.full(400, 0.9)  # nothing in the reference pool is close
+        pool = np.full(400, 0.9)
         p, i_obs, M = exact_p_value(observed=0.01, pool_distances=pool, k=3)
         assert i_obs == 0
-        assert p < 0.02  # still small (genuinely rare), but not a hard 0.0
+        assert p < 0.02
 
     def test_everything_close_gives_p_near_one(self):
-        pool = np.full(400, 0.001)  # the whole reference pool is closer than this
+        pool = np.full(400, 0.001)
         p, i_obs, M = exact_p_value(observed=0.5, pool_distances=pool, k=3)
         assert i_obs == M
         assert p > 0.99
 
     def test_more_active_seeds_makes_a_match_less_surprising(self):
-        """k = "how many independent chances did the observed min get to
-        land this close" -- more chances (larger k) must raise p for the
-        same underlying closeness, not lower it."""
         pool = np.concatenate([np.full(5, 0.02), np.full(395, 0.9)])
         p_k1, _, _ = exact_p_value(observed=0.05, pool_distances=pool, k=1)
         p_k9, _, _ = exact_p_value(observed=0.05, pool_distances=pool, k=9)
         assert p_k9 > p_k1
 
     def test_continuity_correction_avoids_hard_zero_at_small_m(self):
-        """With only 3 reference points and zero of them close, the RAW
-        i_obs/M formula gives q_close=0 -> p=0.0 exactly ("impossible by
-        chance" from checking 3 things). The continuity-corrected version
-        used here must not do that."""
         pool = np.array([0.9, 0.8, 0.7])
         p, i_obs, M = exact_p_value(observed=0.01, pool_distances=pool, k=3)
         assert i_obs == 0
         assert p > 0.0
 
     def test_correction_is_negligible_at_real_dataset_scale(self):
-        """At M ~ 388 (the real project's reference-pool size), the
-        continuity correction should barely move the answer at all --
-        it exists for the small-M regime, not to change real conclusions."""
         pool = np.full(388, 0.9)
         p, _, _ = exact_p_value(observed=0.01, pool_distances=pool, k=3)
         uncorrected = 1.0 - (1.0 - 0 / 388) ** 3
@@ -239,16 +221,10 @@ class TestExactPValue:
 
 class TestSignatureScan:
     def _large_background_rows(self, n: int = 100, seed: int = 0) -> list[tuple]:
-        """Programmatically generate n plausible 'ordinary' cell types with
-        varied simplex compositions (randomized dominant category and
-        purity). Needed specifically for patterns with many active seeds --
-        ORN_SER_confusion has 9-10 -- where signature_calibration's exact
-        test needs M >= ~90-100 for even a perfect match to be able to reach
-        p<0.05 at all (1 - (1 - 0.5/(M+1))**k < 0.05 requires M >= 97 at
-        k=10; the hand-picked ~27-row background used elsewhere in this
-        fixture only supports patterns with k <= ~3, which is why the ORN
-        tests use this instead -- see test_nearby_orn_is_flagged and
-        test_orn_cluster_recovers_via_simplex).
+        """Generate reference profiles with varied dominant categories and purity.
+
+        With k=10, at least 97 reference types are required for the minimum
+        continuity-corrected p-value to fall below 0.05.
         """
         rng = np.random.default_rng(seed)
         order = ["ACH", "GABA", "GLUT", "DA", "SER", "OCT"]
@@ -266,13 +242,7 @@ class TestSignatureScan:
         return rows
 
     def _background_rows(self) -> list[tuple]:
-        """~24 'ordinary' cell types spanning the simplex, none matching any
-        seed pattern. Needed for signature_calibration's exact test to have
-        real resolution -- see that module's docstring: 2-3 background points
-        is not enough for a combinatorial rarity test to mean anything in
-        either direction. These sizes/mixes are arbitrary but deliberately
-        varied (clean and mixed, every dominant category, a range of n).
-        """
+        """Provide 24 reference profiles spanning the transmitter categories."""
         return [
             ("Bg_ACH1", 45, "{'ACH': 45, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'SER': 0, 'OCT': 0}"),
             ("Bg_ACH2", 90, "{'ACH': 80, 'GABA': 6, 'GLUT': 4, 'DA': 0, 'SER': 0, 'OCT': 0}"),
@@ -321,16 +291,10 @@ class TestSignatureScan:
         return pd.DataFrame(records)
 
     def _tiny_entropy_frame(self) -> pd.DataFrame:
-        """Seed families (with z_score matching real project data in sign and
-        rough magnitude -- R7/R8 large positive entropy outliers, already
-        caught by the existing z-score/FDR channel; R1-6 strongly negative,
-        confidently *wrong* rather than inconsistent, invisible to that
-        channel, the whole reason signature_scan exists) plus ~24 background
-        types and two clean decoys, sized so signature_calibration's exact
-        test has resolution for the small-k patterns (Dm: k=2-3; histamine:
-        k=2-3 under LOO). ORN_SER_confusion (k=9-10) structurally needs a
-        much larger background at this method's resolution (see
-        _large_background_rows) and is tested separately below.
+        """Build a fixture for patterns with two or three active seeds.
+
+        Include positive R7/R8 and negative R1-6 entropy z-scores. ORN tests require
+        the larger reference pool supplied by _large_background_rows.
         """
         rows = [
             ("R7", 100, "{'GLUT': 44, 'GABA': 39, 'ACH': 15, 'DA': 1, 'SER': 1, 'OCT': 0}", 7.8),
@@ -356,29 +320,17 @@ class TestSignatureScan:
         return self._frame_from_rows(rows)
 
     def test_recovers_seeds_via_at_least_one_channel(self):
-        """The Dm seed cluster must recover via simplex neighborhood on this
-        fixture (k=2-3 active seeds -- tractable at M~45, see
-        _tiny_entropy_frame's docstring). The histamine family (only 3
-        seeds, deliberately spread out -- R7 is a genuine geometric outlier
-        within its own family, see signature_calibration.py's docstring) is
-        intentionally NOT asserted here at fixed counts: with a background
-        this small, exactly which borderline seeds clear a p<0.05 line is
-        sensitive to composition in a way a real M~400 pool is not. ORN
-        recovery (k=9-10) needs a much bigger background and is tested
-        separately in test_orn_cluster_recovers_via_simplex.
-        test_signature_scan_matches_validated_real_data_numbers checks the
-        actual, validated real-data recovery numbers for all three."""
+        """Check Dm recovery with a small reference pool.
+
+        Histamine recovery depends on reference composition; ORN recovery requires
+        a larger pool. Separate tests evaluate those cases.
+        """
         scored = score_types(self._tiny_entropy_frame())
         report = recovery_report(scored)
         assert report["Dm_GLUT_confusion"]["n_recovered"] >= 2
 
     def test_orn_cluster_recovers_via_simplex(self):
-        """ORN_SER_confusion has 9-10 active seeds under LOO, which needs
-        M >= ~90-100 for even a perfect match to reach p<0.05 (see
-        _large_background_rows's docstring for the exact derivation) --
-        the ~27-row background used by the other fixture tests here is not
-        large enough for this specific pattern, hence the separate,
-        larger fixture."""
+        """Use 120 reference types to support significance testing with ten ORN seeds."""
         rows = [
             ("ORN_V", 40, "{'SER': 20, 'ACH': 18, 'GABA': 2, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
             ("ORN_DL3", 40, "{'SER': 40, 'ACH': 0, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
@@ -397,13 +349,6 @@ class TestSignatureScan:
         assert report["ORN_SER_confusion"]["n_recovered"] >= 7
 
     def test_dual_channel_combines_both_sources_correctly(self):
-        """Isolate recovery_report's channel-combining logic from the messier
-        question of whether a small synthetic fixture's pool composition
-        naturally reproduces realistic entropy z-scores (see previous test).
-        Hand-construct a scored frame with known matched_patterns /
-        entropy_channel_significant values and check the combination logic
-        directly: simplex-only, entropy-only, both, and neither each report
-        correctly, and 'neither' is excluded."""
         scored = pd.DataFrame([
             {"cell_type": "R7", "matched_patterns": "", "entropy_channel_significant": True},
             {"cell_type": "R8", "matched_patterns": "histamine_blindspot", "entropy_channel_significant": True},
@@ -426,12 +371,6 @@ class TestSignatureScan:
         assert info["missed"] == ["R7"]
 
     def test_entropy_reconstruction_matches_real_zscores(self):
-        """The dual-channel recovery check's entropy side depends on
-        entropy_channel.py reconstructing real permutation significance from
-        aggregated counts alone (see that module's docstring for why this is
-        possible without the raw per-neuron table). Validate directly against
-        this project's own real, already-computed z-scores rather than
-        trusting the small synthetic fixture to exercise this faithfully."""
         from entropy_channel import validate_reconstruction_against_real_zscores
         from paths import ENTROPY_CORRECTED
 
@@ -447,7 +386,6 @@ class TestSignatureScan:
         assert check["abs_diff"].median() < 0.5
 
     def test_signature_scan_matches_validated_real_data_numbers(self):
-        """Validate candidate prevalence and seed recovery against committed result data."""
         from signature_scan import load_entropy_table
         from paths import ENTROPY_RAW
 
@@ -465,16 +403,11 @@ class TestSignatureScan:
         )
         assert report["ORN_SER_confusion"]["n_recovered"] >= 7
         assert report["Dm_GLUT_confusion"]["n_recovered"] >= 1
-        # R1-6 is the flagship "entropy structurally can't see this" case;
-        # it must never be excluded from scoring even when it doesn't clear
-        # the significance bar (see test_r1_6_not_formally_significant_...).
         assert "R1-6" in set(scored["cell_type"])
 
 
     def test_r1_6_not_formally_significant_but_notably_close(self):
-        """R1-6 is closer to histamine seeds than an unrelated clean type.
-
-        Its borderline geometric evidence does not imply formal recovery."""
+        """Check relative histamine proximity without requiring formal significance."""
         scored = score_types(self._tiny_entropy_frame())
         r16 = scored[scored["cell_type"] == "R1-6"].iloc[0]
         clean = scored[scored["cell_type"] == "CleanGABA"].iloc[0]
@@ -486,15 +419,12 @@ class TestSignatureScan:
         assert row["is_novel_candidate"] in (False, 0)
 
     def test_clean_gaba_type_is_not_a_novel_candidate(self):
-        """GABA dominance alone does not establish a Dm confusion signature."""
         scored = score_types(self._tiny_entropy_frame())
         row = scored[scored["cell_type"] == "CleanGABA"].iloc[0]
         assert row["is_novel_candidate"] in (False, 0)
 
     def test_nearby_orn_is_flagged(self):
-        """See test_orn_cluster_recovers_via_simplex's docstring: k=10 active
-        seeds for a non-seed candidate here needs the larger background, not
-        the ~27-row one used by the rest of this fixture."""
+        """Use the larger reference pool required by the ORN seed count."""
         rows = [
             ("ORN_V", 40, "{'SER': 20, 'ACH': 18, 'GABA': 2, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
             ("ORN_DL3", 40, "{'SER': 40, 'ACH': 0, 'GABA': 0, 'GLUT': 0, 'DA': 0, 'OCT': 0}"),
@@ -514,15 +444,10 @@ class TestSignatureScan:
         assert row["p_ORN_SER_confusion"] < 0.05
 
     def test_flagged_fraction_is_bounded(self):
-        """The candidate screen flags fewer than half of the synthetic cell types."""
         scored = score_types(self._tiny_entropy_frame())
         assert scored["is_novel_candidate"].mean() < 0.5
 
     def test_background_types_are_rarely_flagged(self):
-        """Unrelated background types have a low candidate rate.
-
-        Multiple p < 0.05 comparisons can produce occasional coincidental
-        matches; the expected background candidate rate is low, not zero."""
         scored = score_types(self._tiny_entropy_frame())
         bg_names = [r[0] for r in self._background_rows()]
         bg = scored[scored["cell_type"].isin(bg_names)]

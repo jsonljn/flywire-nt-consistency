@@ -1,12 +1,6 @@
-"""
-For every FAFB cell type in the entropy table,
-check if a matching MCNS cell type exists and what MCNS's dominant NT is.
+"""Identify FAFB types with elevated entropy and consistent MCNS histamine predictions.
 
-This flags any FAFB cell type where:
-- FAFB entropy is elevated (potential inconsistency)
-- MCNS confidently identifies the matching type as histaminergic
-
-...as an additional histamine-blind-spot candidate beyond R7/R8/Lai/R1-6.
+Literature validation determines which candidates support corrections.
 """
 import pandas as pd
 
@@ -29,8 +23,7 @@ mcns_lookup = build_mcns_nt_lookup(mcns)
 mcns_type_names = mcns["primary_type"].dropna().unique().tolist()
 print(f"MCNS cell types available: {len(mcns_lookup)}")
 
-# Report drop reasons for the MCNS histamine comparison types, as in
-# general_scan_n10.py; literature validation determines correction eligibility.
+# Record exclusions for the MCNS histamine comparison types.
 WATCH_TYPES = {"R7", "R8", "R1-6", "Lai"}
 
 results = []

@@ -1,5 +1,4 @@
-"""
-End-to-end pipeline runner for the FlyWire NT consistency project.
+"""End-to-end pipeline runner for the FlyWire NT consistency project.
 
 Usage:
     python run_pipeline.py              # full pipeline (requires data/)
@@ -48,7 +47,7 @@ def main() -> None:
             run_step(f"Plot: {script}", script)
         return
 
-    # Data prep
+    # Data preparation
     if (ROOT / "data" / "neurons.csv").exists():
         run_step("Merge FAFB annotations", "merge_data.py")
     else:
@@ -59,7 +58,7 @@ def main() -> None:
     else:
         print("SKIP normalize_mcns.py — data_mcns/neurons.csv not found")
 
-    # Primary entropy screen (n>=20)
+    # Primary entropy screen (n >= 20)
     if (ROOT / "data" / "merged_annotations.csv").exists():
         run_step("FAFB entropy analysis (n>=20)", "analysis.py", "data/merged_annotations.csv")
         run_step("Full histamine cross-dataset scan", "full_histamine_scan.py")
@@ -67,7 +66,7 @@ def main() -> None:
     else:
         print("SKIP FAFB analysis — data/merged_annotations.csv not found")
 
-    # Sensitivity screen (n>=10)
+    # Sensitivity screen (n >= 10)
     if (ROOT / "data" / "merged_annotations.csv").exists():
         run_step(
             "FAFB entropy analysis (n>=10)",
@@ -82,7 +81,7 @@ def main() -> None:
     if (ROOT / "results" / "entropy_raw.csv").exists() or (ROOT / "results" / "entropy_raw_n10.csv").exists():
         run_step("Confusion signature scan", "signature_scan.py")
 
-    # Literature validation + corrections
+    # Literature validation and corrections
     if (ROOT / "data" / "gt_data.csv").exists() and (ROOT / "results" / "three_confusion_patterns.csv").exists():
         run_step("Literature validation", "validate_against_literature.py")
         run_step("Build correction lists", "build_corrections.py")
@@ -92,12 +91,12 @@ def main() -> None:
     if (ROOT / "data" / "gt_data.csv").exists() and (ROOT / "results" / "signature_scan.csv").exists():
         run_step("Signature scan literature cross-check + corrections", "build_signature_corrections.py")
 
-    # Connectivity
+    # Connectivity analysis
     if not args.skip_connectivity and (ROOT / "data" / "connections.csv").exists():
         run_step("Connectivity comparison", "connectivity_comparison.py")
         run_step("Connectivity PCA plots", "connectivity_plots.py")
 
-    # Figures + validation
+    # Figures and validation
     if (ROOT / "results" / "entropy_raw.csv").exists() or (ROOT / "results" / "entropy_raw_n10.csv").exists():
         run_step("Histamine blindspot figure", "plot_histamine_blindspot.py")
     if (ROOT / "results" / "three_confusion_patterns.csv").exists():

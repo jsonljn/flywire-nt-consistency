@@ -1,4 +1,4 @@
-"""Project paths — single source of truth for data, results, and figures."""
+"""Define paths for input data, analysis results, and figures."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -17,7 +17,7 @@ FAFB_CONNECTIONS = DATA / "connections.csv"
 ENTROPY_RAW = RESULTS / "entropy_raw.csv"
 ENTROPY_CORRECTED = RESULTS / "entropy_corrected.csv"
 
-# Sensitivity screen (n >= 10) — separate files so runs do not overwrite each other
+# Sensitivity screen (n >= 10)
 ENTROPY_RAW_N10 = RESULTS / "entropy_raw_n10.csv"
 ENTROPY_CORRECTED_N10 = RESULTS / "entropy_corrected_n10.csv"
 

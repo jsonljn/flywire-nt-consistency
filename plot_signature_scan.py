@@ -23,7 +23,6 @@ PATTERN_LABELS = {
 }
 
 
-# ── Simplex projection: SER vs GLUT, size = n, alpha by neighborhood ──
 fig, ax = plt.subplots(figsize=(10, 7))
 background = scored[~scored["in_neighborhood"]]
 ax.scatter(
@@ -105,7 +104,6 @@ plt.savefig(out, dpi=150)
 plt.close()
 print(f"Saved {out}")
 
-# ── Why entropy fails for R1-6 ──
 fig, ax = plt.subplots(figsize=(9, 6))
 ax.scatter(
     scored["entropy"],
@@ -148,7 +146,6 @@ plt.savefig(out2, dpi=150)
 plt.close()
 print(f"Saved {out2}")
 
-# ── Novel candidates ──
 novel = scored[scored["is_novel_candidate"]].sort_values("best_js").head(20)
 if len(novel):
     fig, ax = plt.subplots(figsize=(10, max(4, 0.38 * len(novel) + 1.5)))

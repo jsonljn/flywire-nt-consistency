@@ -1,14 +1,7 @@
-"""
-Test whether the R7/R8 pattern (spurious entropy from a missing HIST category)
-generalizes to other known-histaminergic cell types in FAFB.
+"""Compare FAFB entropy for types with consistent MCNS histamine predictions.
 
-Strategy:
-1. From MCNS (whose classifier includes histamine), find cell types that are
-   confidently histaminergic (majority NT = HIST).
-2. Match those cell type names to FAFB's cell types via mcns_matching.
-3. Check FAFB's raw entropy for those matched types -- if the hypothesis is
-   right, they should show unusually high entropy despite being a single,
-   real, consistent (histaminergic) population.
+Match MCNS types to FAFB and evaluate their position in the FAFB entropy
+distribution. MCNS predictions require independent literature validation.
 """
 import pandas as pd
 
@@ -60,7 +53,6 @@ print("\n" + "=" * 70)
 print("STEP 2: Match these to FAFB cell types and check entropy")
 print("=" * 70)
 
-# Reverse map: MCNS subtype -> FAFB coarse type for explicit groups
 mcns_to_fafb_explicit = {}
 for fafb_type, subtypes in EXPLICIT_SUBTYPE_GROUPS.items():
     for subtype in subtypes:

@@ -1,5 +1,4 @@
-"""
-Visualize the suspicion score distribution and ranking.
+"""Visualize the suspicion score distribution and ranking.
 
 Usage:
     python suspicion_score_plot.py

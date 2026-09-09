@@ -1,8 +1,7 @@
-"""
-Regenerate the histamine blindspot figure from saved entropy results.
+"""Plot FAFB entropy with the MCNS histamine comparison types highlighted.
 
-Shows the full FAFB entropy distribution with confirmed-histaminergic cell types
-(R7, R8, Lai, R1-6) highlighted — the visual anchor for the headline finding.
+The highlighted types are R7, R8, Lai, and R1-6. Literature excludes Lai
+from histamine corrections.
 """
 from __future__ import annotations
 
@@ -20,10 +19,8 @@ from paths import (
 
 ensure_output_dirs()
 
-# Primary n>=20 screen
 entropy = pd.read_csv(ENTROPY_RAW)
 
-# Confirmed histaminergic types — prefer summary table, else dedicated results file
 if CONFIRMED_HISTAMINERGIC_SUMMARY.exists():
     confirmed = pd.read_csv(CONFIRMED_HISTAMINERGIC_SUMMARY)
     highlight_types = confirmed["cell_type"].tolist()
@@ -42,7 +39,6 @@ mean_confirmed = np.mean(list(highlight_data.values()))
 
 fig, ax = plt.subplots(figsize=(10, 6))
 
-# Background distribution
 ax.hist(
     all_entropies,
     bins=40,
@@ -52,7 +48,6 @@ ax.hist(
     label=f"All FAFB types (n={len(entropy)}, mean={mean_all:.2f})",
 )
 
-# Highlight confirmed histaminergic types
 colors = {"R7": "#d62728", "R8": "#ff7f0e", "Lai": "#9467bd", "R1-6": "#2ca02c"}
 for ct, ent in highlight_data.items():
     pct = (entropy["entropy"] < ent).mean() * 100

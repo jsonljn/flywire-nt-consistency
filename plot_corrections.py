@@ -1,6 +1,4 @@
-"""
-Correction summary visualization: neurons flagged per cell type and pattern.
-"""
+"""Correction summary visualization: neurons flagged per cell type and pattern."""
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
@@ -16,7 +14,6 @@ lit = pd.read_csv(LITERATURE_VALIDATED)
 pattern_map = lit.set_index("fafb_cell_type")["pattern"].to_dict()
 fafb["pattern"] = fafb["cell_type"].map(pattern_map)
 
-# Bar chart: corrections per cell type, colored by pattern
 PATTERN_COLORS = {
     "categorical_blindspot_HIST": "#d62728",
     "ORN_SER_confusion": "#1f77b4",
@@ -33,7 +30,6 @@ ax.set_xlabel("Neurons proposed for correction")
 ax.set_ylabel("Cell type")
 ax.set_title(f"FAFB correction list: {len(fafb)} neurons across {fafb['cell_type'].nunique()} cell types")
 
-# Legend
 from matplotlib.patches import Patch
 legend_items = [
     Patch(color=c, label=p.replace("_", " "))
@@ -48,7 +44,6 @@ plt.savefig(out, dpi=150)
 plt.close()
 print(f"Saved {out}")
 
-# Stacked bar: wrong NT categories per pattern
 fig, ax = plt.subplots(figsize=(8, 5))
 cross = pd.crosstab(fafb["pattern"], fafb["current_predicted_nt"])
 cross.plot(kind="bar", stacked=True, ax=ax, colormap="tab10", alpha=0.85)

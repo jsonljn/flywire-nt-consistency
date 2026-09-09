@@ -1,25 +1,9 @@
-"""
-Connectivity comparison: does the WRONG neurotransmitter prediction that
-FAFB assigns to histaminergic neurons (R7, R8) encode real structure --
-e.g. correlating with true anatomical subtype (R7y/R7p/R7d) via connectivity
-patterns -- or is it essentially noise with no connectivity signal?
+"""Test associations between predicted transmitter labels and connectivity.
 
-Approach:
-1. For each R7 (or R8) neuron with an NT prediction, build a normalized
-   output connectivity profile: fraction of its output synapses going to
-   each of the top-K most common downstream partner cell types.
-2. Test whether neurons sharing the same (wrong) NT label have more similar
-   connectivity profiles than neurons with different labels, using:
-   - A permutation test on mean within-label vs between-label cosine similarity
-   - A cross-validated classifier: can connectivity profile predict NT label
-     better than chance?
-3. Repeat for R8.
-
-If there's real structure, that's evidence the FAFB classifier's mispredictions
-aren't just noise -- they may be picking up on the same real variation that
-distinguishes anatomical subtypes. If there's no structure, the mispredictions
-carry no extra information and should just be treated as a blanket "this cell
-type is subject to the histamine blind spot" flag.
+For R7 and R8, construct normalized output profiles over the most common
+downstream partner types. Compare within-label and between-label cosine
+similarity by permutation and evaluate label prediction by cross-validation.
+Connectivity associations do not establish anatomical subtype identity.
 """
 import pandas as pd
 import numpy as np
@@ -37,8 +21,8 @@ from paths import (
 
 ensure_output_dirs()
 
-MIN_SYNAPSES = 5   # ignore very weak connections
-TOP_K_PARTNERS = 30  # dimensionality of the connectivity profile
+MIN_SYNAPSES = 5
+TOP_K_PARTNERS = 30
 N_PERMUTATIONS = 2000
 RANDOM_SEED = 42
 
@@ -48,17 +32,14 @@ connections = pd.read_csv(FAFB_CONNECTIONS)
 print(f"  Annotations: {len(annotations)} neurons")
 print(f"  Connections: {len(connections)} edges")
 
-# Filter weak connections
 connections = connections[connections['syn_count'] >= MIN_SYNAPSES]
 print(f"  Connections after >= {MIN_SYNAPSES} synapse filter: {len(connections)}")
 
-# Map root_id -> cell type, for labeling downstream partners
 id_to_type = dict(zip(annotations['root_id'], annotations['primary_type']))
 
 
 def build_connectivity_profiles(cell_type_name, top_k=TOP_K_PARTNERS):
-    """
-    For each neuron of the given cell type with an NT prediction, build a
+    """For each neuron of the given cell type with an NT prediction, build a
     normalized output connectivity profile vector over the top_k most common
     downstream partner cell types (computed within this population).
     """
@@ -69,13 +50,11 @@ def build_connectivity_profiles(cell_type_name, top_k=TOP_K_PARTNERS):
     neuron_ids = set(neurons['root_id'])
     print(f"\n{cell_type_name}: {len(neurons)} neurons with NT prediction")
 
-    # Get all outgoing edges from these neurons
     out_edges = connections[connections['pre_root_id'].isin(neuron_ids)].copy()
     out_edges['post_type'] = out_edges['post_root_id'].map(id_to_type)
     out_edges = out_edges.dropna(subset=['post_type'])
     print(f"  Outgoing edges to typed partners: {len(out_edges)}")
 
-    # Determine top-K partner types by total synapse weight
     partner_weight = out_edges.groupby('post_type')['syn_count'].sum().sort_values(ascending=False)
     top_partners = partner_weight.head(top_k).index.tolist()
     print(f"  Top {len(top_partners)} partner types cover "
@@ -107,10 +86,7 @@ def cosine_sim_matrix(X):
 
 
 def within_vs_between_test(X, labels, n_permutations=N_PERMUTATIONS, seed=RANDOM_SEED):
-    """
-    Permutation test: is mean within-label cosine similarity higher than
-    mean between-label cosine similarity, more than expected by chance?
-    """
+    """Test whether within-label cosine similarity exceeds between-label similarity."""
     sim = cosine_sim_matrix(X)
     n = len(labels)
     labels = np.array(labels)
@@ -145,14 +121,11 @@ def within_vs_between_test(X, labels, n_permutations=N_PERMUTATIONS, seed=RANDOM
 
 
 def classifier_test(X, labels, seed=RANDOM_SEED):
-    """
-    Cross-validated random forest: can connectivity profile predict the
-    (wrong) NT label better than chance?
-    """
+    """Evaluate transmitter-label prediction using a cross-validated random forest."""
     le = LabelEncoder()
     y = le.fit_transform(labels)
 
-    # Only keep classes with enough members for stratified CV
+    # Stratified cross-validation requires sufficient members in each class.
     vc = pd.Series(y).value_counts()
     valid_classes = vc[vc >= 5].index
     mask = np.isin(y, valid_classes)
@@ -165,7 +138,7 @@ def classifier_test(X, labels, seed=RANDOM_SEED):
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
     scores = cross_val_score(clf, X_f, y_f, cv=cv, scoring='accuracy')
 
-    baseline = vc[valid_classes].max() / vc[valid_classes].sum()  # majority-class baseline
+    baseline = vc[valid_classes].max() / vc[valid_classes].sum()
 
     return {
         'n_neurons_used': len(y_f),
@@ -175,10 +148,6 @@ def classifier_test(X, labels, seed=RANDOM_SEED):
         'majority_class_baseline': baseline,
     }
 
-
-# ─────────────────────────────────────────────
-# Run for R7 and R8
-# ─────────────────────────────────────────────
 
 results_summary = {}
 
@@ -219,15 +188,11 @@ for cell_type in ['R7', 'R8']:
         'classifier_test': clf_result,
     }
 
-    # Save profile data for this cell type
     profile_df = pd.DataFrame(X, columns=[f'partner_{p}' for p in partners])
     profile_df.insert(0, 'root_id', ids)
     profile_df.insert(1, 'nt_label', labels)
     profile_df.to_csv(RESULTS / f"connectivity_profiles_{cell_type}.csv", index=False)
 
-# ─────────────────────────────────────────────
-# Summary table + plot
-# ─────────────────────────────────────────────
 
 print("\n" + "=" * 70)
 print("SUMMARY")

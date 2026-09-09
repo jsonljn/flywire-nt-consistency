@@ -1,5 +1,4 @@
-"""
-Summary visualization of the three systematic confusion patterns
+"""Summary visualization of the three systematic confusion patterns
 (histamine blind spot, ORN serotonin confusion, Dm glutamate confusion).
 """
 from __future__ import annotations
@@ -65,7 +64,6 @@ plt.savefig(out, dpi=150, bbox_inches="tight")
 plt.close()
 print(f"Saved {out}")
 
-# Donut chart: pattern counts
 fig, ax = plt.subplots(figsize=(6, 6))
 counts = patterns.groupby("pattern").size()
 labels = [PATTERN_LABELS.get(k, k).replace("\n", " ") for k in counts.index]

@@ -1,25 +1,19 @@
-"""
-Shared MCNS cell-type matching for cross-dataset comparisons.
+"""Match FAFB cell types to MCNS names and aggregate subtype predictions.
 
-Uses name_matching.py for safe exact/range matches. MCNS subtype splits
-(R7y, R7p, ...) are handled via explicit groups — not a generic prefix rule,
-which could conflate unrelated types (e.g. Dm1 vs Dm12).
+Use exact matches, equivalent range notation, and explicit photoreceptor
+subtype groups. Restrict suffix matching to avoid conflating Dm1 with Dm12.
 """
 import re
 from typing import Optional
 
 from name_matching import build_match_index, find_match
 
-# FAFB coarse type -> MCNS finer subtypes to aggregate
 EXPLICIT_SUBTYPE_GROUPS: dict[str, list[str]] = {
-    # ExR7/ExR8 are Extrinsic Ring neurons of the ellipsoid body, a separate
-    # cell class from R7/R8 photoreceptors. Only photoreceptor subtypes belong
-    # in these groups; shared name substrings do not establish type identity.
+    # ExR7/ExR8 are Extrinsic Ring neurons, not R7/R8 photoreceptor subtypes.
     "R7": ["R7y", "R7p", "R7d", "R7_unclear"],
     "R8": ["R8y", "R8p", "R8d", "R8_unclear"],
 }
 
-# Safe MCNS subtype suffix: letters/underscore only, no digits (Dm1 != Dm12)
 _SUBTYPE_SUFFIX = re.compile(r"^[a-z_]+$")
 
 
@@ -41,8 +35,7 @@ def build_mcns_nt_lookup(
 
 
 def _safe_subtype_variants(fafb_type: str, mcns_type_names: set[str]) -> list[str]:
-    """
-    MCNS names that are fafb_type plus a lowercase suffix (e.g. Dm3 -> Dm3a).
+    """MCNS names that are fafb_type plus a lowercase suffix (e.g. Dm3 -> Dm3a).
     Rejects suffixes containing digits so Dm1 does not match Dm12.
     """
     prefix = fafb_type
@@ -60,8 +53,7 @@ def resolve_fafb_to_mcns(
     fafb_type: str,
     mcns_type_names: list[str],
 ) -> tuple[Optional[list[str]], Optional[str]]:
-    """
-    Map a FAFB cell type to one or more MCNS type names.
+    """Map a FAFB cell type to one or more MCNS type names.
 
     Returns (mcns_names, method) or (None, None) if no safe match.
     """
@@ -71,7 +63,6 @@ def resolve_fafb_to_mcns(
         names = [n for n in EXPLICIT_SUBTYPE_GROUPS[fafb_type] if n in mcns_set]
         if names:
             return names, "explicit_subtype_group"
-        # Fall through — MCNS may use the coarse name (plain "R7") instead of subtypes
 
     if fafb_type in mcns_set:
         return [fafb_type], "exact"
@@ -101,7 +92,6 @@ def aggregate_mcns_stats(
     if len(rows) == 1:
         return rows[0].copy()
 
-    # Weighted fraction per NT label across subtypes
     nt_weight: dict[str, float] = {}
     for row in rows:
         nt = row["majority_nt"]

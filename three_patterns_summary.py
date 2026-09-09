@@ -6,14 +6,11 @@ ensure_output_dirs()
 
 df = pd.read_csv(GENERAL_SCAN_FULL)
 
-# Pattern 1: Categorical blind spot (HIST)
 p1 = df[(df["is_categorical_blindspot"]) & (~df["agrees_with_mcns"])]
 
-# Pattern 2: ORN SER-vs-ACH confusion
 orn = df[df["fafb_cell_type"].astype(str).str.startswith("ORN_")]
 p2 = orn[(orn["mcns_confirmed_nt"] == "ACH") & (orn["fafb_dominant_nt"] == "SER")]
 
-# Pattern 3: Dm GABA/ACH-vs-GLUT confusion
 dm = df[df["fafb_cell_type"].astype(str).str.match(r"^Dm\d", na=False)]
 p3 = dm[(dm["mcns_confirmed_nt"] == "GLUT") & (dm["fafb_dominant_nt"].isin(["GABA", "ACH"]))]
 

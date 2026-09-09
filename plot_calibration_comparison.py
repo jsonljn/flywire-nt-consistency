@@ -18,7 +18,6 @@ n_calibrated = int(scored["is_novel_candidate"].sum())
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 5), gridspec_kw={"width_ratios": [1, 1.3]})
 
-# ── Left: candidate fraction by method ──
 bars = ax1.bar(
     ["Distance heuristic\n(LOO max x 1.35)", "Calibrated exact test\n(reference-pool null)"],
     [n_heuristic / n_total * 100, n_calibrated / n_total * 100],
@@ -36,13 +35,7 @@ ax1.set_title("Candidate selection by method")
 ax1.set_ylim(0, 95)
 ax1.spines[["top", "right"]].set_visible(False)
 
-# ── Right: literature validation of calibrated candidates ──
-# Uses the same precise logic as build_signature_corrections.py (agreement
-# with the *actual* verified transmitter set, not just the pattern's
-# expected direction) so this figure and that script's CSVs always tell the
-# same story -- see that script's docstring for why "literature confirms the
-# pattern's expected direction" alone is not sufficient (a type can sit near
-# a confusion fingerprint while still being correctly predicted).
+# Validate against the verified transmitter set, not the matched pattern label.
 from nt_utils import parse_verified_nts, prediction_needs_correction  # noqa: E402
 
 novel = scored[scored["is_novel_candidate"]].copy()
@@ -54,7 +47,7 @@ if len(confirmed):
         lambda r: prediction_needs_correction(r["dominant_nt"], r["verified_set"]), axis=1
     )
 else:
-    # Preserve the boolean output column when no candidates have literature.
+    # Preserve the boolean column when no candidates have literature support.
     confirmed["needs_correction"] = pd.Series(dtype=bool)
 
 counts = pd.Series({

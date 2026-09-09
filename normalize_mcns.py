@@ -1,5 +1,4 @@
-"""
-Normalize MCNS neuron attributes to match the FAFB schema so analysis.py
+"""Normalize MCNS neuron attributes to match the FAFB schema so analysis.py
 can be reused without modification.
 """
 import pandas as pd
@@ -11,7 +10,6 @@ df = pd.read_csv(DATA_MCNS / "neurons.csv")
 print(f"Shape: {df.shape}")
 print(f"Original columns: {list(df.columns)}")
 
-# Map MCNS column names -> FAFB-style column names
 rename_map = {
     'Root ID': 'root_id',
     'Predicted NT type': 'nt_type',
@@ -30,7 +28,6 @@ rename_map = {
 df = df.rename(columns=rename_map)
 print(f"\nRenamed columns: {list(df.columns)}")
 
-# Check key columns
 print(f"\nMissing root_id: {df['root_id'].isna().sum()}")
 print(f"Missing nt_type: {df['nt_type'].isna().sum()}")
 print(f"Missing primary_type: {df['primary_type'].isna().sum()}")

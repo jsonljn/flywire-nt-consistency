@@ -1,26 +1,9 @@
-"""
-Literature cross-check for signature_scan.py's novel candidates.
+"""Validate signature-scan candidates against literature evidence.
 
-build_corrections.py already produces corrections/corrections_fafb.csv from
-the *name-matched* three-pattern scan (three_confusion_patterns.csv ->
-validate_against_literature.py -> literature_validated_candidates.csv). This
-script does the equivalent last step for the *geometry-matched* candidates
-signature_scan.py finds independently of any MCNS name match -- kept as a
-separate, clearly-attributed output rather than merged into corrections_fafb.csv,
-because these candidates were found by a different method (simplex distance +
-an exact permutation test, not cross-dataset name matching) and deserve
-independent provenance, in the same spirit as this project's existing
-name_matching.py philosophy: don't quietly merge two different kinds of
-evidence into one list.
-
-A candidate only becomes an actual correction here if BOTH:
-  1. gt_data.csv (literature) confirms a transmitter for it, AND
-  2. that transmitter actually DISAGREES with FAFB's own dominant prediction
-     (nt_utils.prediction_needs_correction) -- literature agreeing with the
-     *pattern's expected transmitter* is not sufficient on its own, because a
-     type can sit geometrically near a confusion fingerprint while still
-     being correctly predicted (e.g. Dm4: literature GLUT, FAFB also predicts
-     GLUT -- geometrically Dm-like, but there is nothing to correct).
+A correction requires a verified transmitter set that excludes the dominant
+FAFB prediction. Agreement with a pattern label alone is insufficient.
+Results are stored separately from name-matched corrections to retain
+method provenance.
 """
 from __future__ import annotations
 
@@ -44,9 +27,7 @@ def build_signature_scan_corrections() -> pd.DataFrame:
             lambda r: prediction_needs_correction(r["dominant_nt"], r["verified_set"]), axis=1
         )
     else:
-        # pandas .apply(axis=1) on a 0-row frame can return a DataFrame
-        # instead of a Series, breaking the assignment above. Nothing to
-        # compute either way when there are no literature-confirmed rows.
+        # Preserve the output schema when no rows have literature support.
         confirmed["needs_correction"] = pd.Series(dtype=bool)
 
     corrections = confirmed[confirmed["needs_correction"]].copy()

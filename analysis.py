@@ -1,11 +1,4 @@
-"""
-Neurotransmitter Consistency Within Cell Types Across FlyWire Connectomes
-=========================================================================
-
-Goal: Find which cell types violate Dale's law — where neurons of the same
-type disagree on their predicted neurotransmitter — and determine whether
-that inconsistency is genuine biology or annotation noise.
-"""
+"""Measure within-cell-type neurotransmitter consistency using entropy and permutation tests."""
 
 from __future__ import annotations
 
@@ -21,10 +14,6 @@ from paths import FIGURES, ensure_output_dirs, entropy_paths
 
 warnings.filterwarnings("ignore")
 
-
-# ─────────────────────────────────────────────
-# STEP 1: Load data
-# ─────────────────────────────────────────────
 
 def load_annotations(path):
     """Load the FlyWire annotations CSV."""
@@ -63,10 +52,6 @@ def detect_columns(df):
     print(f"  Detected columns: {mapping}")
     return mapping
 
-
-# ─────────────────────────────────────────────
-# STEP 2: Shannon entropy per cell type
-# ─────────────────────────────────────────────
 
 def shannon_entropy(counts) -> float:
     """Shannon entropy in bits (log base 2)."""
@@ -109,10 +94,6 @@ def compute_entropy_per_type(df, cell_type_col, nt_col, min_members=20):
     return df_results
 
 
-# ─────────────────────────────────────────────
-# STEP 3: Stratified permutation null
-# ─────────────────────────────────────────────
-
 def benjamini_hochberg(p_values: np.ndarray) -> np.ndarray:
     """Return Benjamini-Hochberg FDR q-values for a vector of p-values."""
     p = np.asarray(p_values, dtype=float)
@@ -143,8 +124,7 @@ def stratified_permutation_null(
     n_permutations=1000,
     seed=42,
 ):
-    """
-    Stratified permutation null preserving marginal NT counts and group sizes.
+    """Stratified permutation null preserving marginal NT counts and group sizes.
 
     Returns raw entropy, null moments, z-score, and empirical one-sided p-value
     P(null >= observed), with Benjamini-Hochberg q-values across all types.
@@ -158,14 +138,7 @@ def stratified_permutation_null(
     n_nt = len(_nt_names)
     sizes = np.bincount(type_codes, minlength=n_types)
 
-    # Flattened-index bincount instead of np.add.at: same histogram, ~1.7x
-    # faster at this dataset's real scale (139k neurons / 402 types / 1000
-    # permutations, benchmarked directly -- np.add.at cannot vectorize its
-    # accumulation because it has to handle possible duplicate-index
-    # collisions one at a time, where bincount's single-pass C histogram has
-    # no such restriction). Exact equivalence (not just faster, but bit-for-
-    # bit identical output) is checked in
-    # tests/test_core.py::TestStratifiedNull::test_bincount_matches_add_at.
+    # Accumulate repeated type/transmitter indices in one histogram.
     flat_type = type_codes.astype(np.int64) * n_nt
 
     def _counts(nt_values: np.ndarray) -> np.ndarray:
@@ -193,7 +166,7 @@ def stratified_permutation_null(
     z = np.zeros(n_types, dtype=np.float64)
     positive_std = std_null > 0
     z[positive_std] = (observed[positive_std] - mean_null[positive_std]) / std_null[positive_std]
-    # (k+1)/(n+1) avoids zero p-values under permutation
+    # The add-one correction prevents zero permutation p-values.
     p_values = (null_ge + 1) / (n_permutations + 1)
 
     results = []
@@ -213,10 +186,6 @@ def stratified_permutation_null(
     df_null = df_null.sort_values("z_score", ascending=False).reset_index(drop=True)
     return df_null
 
-
-# ─────────────────────────────────────────────
-# STEP 4: Biological cross-reference
-# ─────────────────────────────────────────────
 
 def crossref_outliers(
     df_annotations,
@@ -249,10 +218,6 @@ def crossref_outliers(
         if neuropil_col and neuropil_col in group.columns:
             print(f"  Top neuropils: {dict(group[neuropil_col].value_counts().head(3))}")
 
-
-# ─────────────────────────────────────────────
-# STEP 5: Visualizations
-# ─────────────────────────────────────────────
 
 def plot_entropy_distribution(df_entropy, output_path):
     top30 = df_entropy.head(30)
@@ -343,10 +308,6 @@ def plot_fdr_volcano(df_null, output_path, min_members=20):
     plt.close()
     print(f"Saved: {output_path}")
 
-
-# ─────────────────────────────────────────────
-# MAIN
-# ─────────────────────────────────────────────
 
 def run_analysis(annotations_path, min_members=20, n_permutations=1000):
     ensure_output_dirs()

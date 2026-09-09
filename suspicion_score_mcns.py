@@ -1,17 +1,7 @@
-"""
-Suspicion score for the MCNS correction candidates, extending the same
-approach used for FAFB (suspicion_score.py).
+"""Rank MCNS corrections by confidence in the flagged prediction.
 
-MCNS's Neuron Attributes export exposes a single "Predicted NT confidence"
-(nt_type_score) per neuron, not a per-category probability breakdown like
-FAFB's ach_avg/glut_avg/etc. So only E1 (confidence in the wrong prediction)
-is computable here -- E2 is not available for any MCNS correction, not just
-the categorical blind-spot ones. This is a data-availability limit, not the
-same structural reasoning as FAFB's histamine gap, and is documented as such
-(score_type = "E1_only") rather than silently reusing the FAFB label.
-
-Usage:
-    python suspicion_score_mcns.py
+The MCNS export lacks per-category probabilities, so scores use E1 only
+and record score_type as E1_only.
 Requires data_mcns/merged_annotations.csv and corrections/corrections_mcns.csv.
 Writes corrections/corrections_mcns_scored.csv.
 """

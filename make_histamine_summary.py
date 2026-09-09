@@ -1,8 +1,7 @@
-"""
-Generate confirmed_histaminergic_summary.csv from cross-dataset results.
+"""Combine FAFB entropy and MCNS predictions for R7, R8, Lai, and R1-6.
 
-Combines FAFB entropy with MCNS histamine confirmation for the four
-canonical photoreceptor / histaminergic types including R1-6.
+These are MCNS histamine comparison types. Literature excludes Lai from
+histamine corrections.
 """
 from __future__ import annotations
 
@@ -35,7 +34,7 @@ for cell_type in TARGET_TYPES:
     ent_row = ent_row.iloc[0]
 
     n_labeled = int((fafb["primary_type"] == cell_type).sum())
-    n_total = n_labeled  # same merged table; extend if unlabeled counts needed later
+    n_total = n_labeled
 
     matched, _ = resolve_fafb_to_mcns(cell_type, mcns_names)
     mcns_hist_frac = None
@@ -60,7 +59,6 @@ summary.to_csv(CONFIRMED_HISTAMINERGIC_SUMMARY, index=False)
 print(f"Saved {CONFIRMED_HISTAMINERGIC_SUMMARY}")
 print(summary.to_string(index=False))
 
-# Also refresh the detailed file if we have all four types
 if len(summary) >= 3:
     detail = entropy[entropy["cell_type"].isin(summary["cell_type"])]
     detail.to_csv(CONFIRMED_HISTAMINERGIC, index=False)

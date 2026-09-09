@@ -1,17 +1,7 @@
-"""
-Validate flagged cell types against the literature ground truth
-(flyconnectome/drosophila_neurotransmitters), and produce the deliverable
-Arie asked for: a list of proposed corrections, one per dataset.
+"""Validate candidate cell types against literature transmitter annotations.
 
-Ground truth semantics (gt_data.csv):
-  1  = neurotransmitter verified present
- -1  = neurotransmitter verified absent
-  0  = not assessed / no data
-
-A cell type's "verified NT set" is every column marked 1. Most cell types
-have exactly one; a genuine co-transmitter can have more than one (this is
-represented in the data, e.g. some types show both acetylcholine=1 and
-another transmitter=1).
+In gt_data.csv, 1 denotes verified presence, -1 verified absence, and 0
+unassessed status. Co-transmitter types can have multiple verified categories.
 """
 import pandas as pd
 import numpy as np
@@ -23,7 +13,6 @@ ensure_output_dirs()
 NT_COLUMNS = ['acetylcholine', 'glutamate', 'gaba', 'glycine', 'dopamine',
               'serotonin', 'octopamine', 'tyramine', 'histamine', 'nitric_oxide']
 
-# Map ground truth column names -> FlyWire classifier NT codes
 GT_TO_CODE = {
     'acetylcholine': 'ACH', 'glutamate': 'GLUT', 'gaba': 'GABA',
     'dopamine': 'DA', 'serotonin': 'SER', 'octopamine': 'OCT',
@@ -36,9 +25,7 @@ gt = pd.read_csv(GT_DATA)
 gt = gt[gt['species'] == 'adult_drosophila_melanogaster'].copy()
 print(f"  {len(gt)} adult D. melanogaster rows, {gt['cell_type'].nunique()} unique cell types")
 
-# Some cell types have multiple ground-truth rows (different sources). Combine:
-# a transmitter counts as verified-present for the type if ANY source marks it 1,
-# unless another equally-or-more confident source marks it -1 with no support for 1.
+# Presence requires any positive source; absence requires all sources to be negative.
 def combine_gt_rows(group):
     verified_present = set()
     verified_absent = set()
@@ -80,17 +67,10 @@ def match_against_gt(cell_type_name):
     }
 
 
-# ─────────────────────────────────────────────
-# Load all flagged candidates from prior analysis (both n>=20 and n>=10 runs)
-# ─────────────────────────────────────────────
-
 print("\nLoading screening candidates...")
 pattern_flagged = pd.read_csv(THREE_PATTERNS)
 print(f"  {len(pattern_flagged)} screening FAFB cell types (histamine blindspot + ORN + Dm patterns)")
 
-# ─────────────────────────────────────────────
-# Cross-check every flagged type against literature ground truth
-# ─────────────────────────────────────────────
 
 print("\nCross-checking each flagged type against literature ground truth...")
 records = []
@@ -138,7 +118,6 @@ print(results[['fafb_cell_type', 'pattern', 'fafb_dominant_nt_wrong', 'mcns_says
 results.to_csv(LITERATURE_VALIDATED, index=False)
 print(f"\nSaved {LITERATURE_VALIDATED}")
 
-# Flag any disagreements for manual review
 disagreements = results[results['agrees_with_literature'] == False]
 if len(disagreements) > 0:
     print(f"\n*** WARNING: {len(disagreements)} candidate(s) where MCNS/pattern claim "

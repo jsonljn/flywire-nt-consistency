@@ -1,5 +1,4 @@
-"""
-Build literature-supported neuron correction lists for FAFB and MCNS.
+"""Build literature-supported neuron correction lists for FAFB and MCNS.
 
 For each supported cell type in the cross-dataset candidate table, list
 neurons whose predicted transmitter is outside the literature-verified set,
@@ -42,9 +41,7 @@ verified_lookup = {
 
 confirmed_types = list(verified_lookup.keys())
 
-# ─────────────────────────────────────────────
 # FAFB corrections
-# ─────────────────────────────────────────────
 
 print("\nLoading FAFB annotations...")
 fafb = pd.read_csv(FAFB_MERGED)
@@ -82,9 +79,7 @@ fafb_out = CORRECTIONS / "corrections_fafb.csv"
 fafb_corrections_df.to_csv(fafb_out, index=False)
 print(f"Saved {fafb_out}")
 
-# ─────────────────────────────────────────────
 # MCNS corrections
-# ─────────────────────────────────────────────
 
 print("\nLoading MCNS annotations...")
 mcns = pd.read_csv(MCNS_MERGED)
@@ -146,9 +141,7 @@ mcns_out = CORRECTIONS / "corrections_mcns.csv"
 mcns_corrections_df.to_csv(mcns_out, index=False)
 print(f"Saved {mcns_out}")
 
-# ─────────────────────────────────────────────
-# Excluded / unconfirmed, for transparency
-# ─────────────────────────────────────────────
+# Excluded and unconfirmed candidates
 
 all_flagged = pd.read_csv(LITERATURE_VALIDATED)
 excluded = all_flagged[all_flagged["agrees_with_literature"] != True]

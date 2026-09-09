@@ -1,12 +1,7 @@
-"""
-General scan at n>=10: for every FAFB cell type, check if MCNS confirms it as
-highly NT-consistent (any single dominant transmitter, not just histamine),
-and flag cases where FAFB shows meaningfully elevated entropy despite that
-external confirmation of consistency.
+"""Compare FAFB entropy with MCNS transmitter consistency for types with at least 10 neurons.
 
-This generalizes the histamine-blindspot check to catch:
-1. Categorical blind spots (true NT not in FAFB's 6-category output, e.g. HIST)
-2. Genuine classifier confusion on a predictable category (e.g. potentially PFGs/SER)
+The screen covers missing transmitter categories and prediction disagreements
+within the classifier output vocabulary.
 """
 import pandas as pd
 
@@ -25,7 +20,6 @@ from paths import (
 
 ensure_output_dirs()
 
-# Prefer the n>=10 entropy file; fall back to the primary n>=20 table.
 if ENTROPY_RAW_N10.exists():
     entropy_path = ENTROPY_RAW_N10
 else:
@@ -42,8 +36,7 @@ print(f"FAFB cell types to check (n>=10): {len(fafb_entropy)}")
 mcns_lookup = build_mcns_nt_lookup(mcns)
 mcns_type_names = mcns["primary_type"].dropna().unique().tolist()
 
-# Report drop reasons for the four MCNS histamine comparison types.
-# Literature validation separately determines which support corrections.
+# Record exclusions for the MCNS histamine comparison types.
 WATCH_TYPES = {"R7", "R8", "R1-6", "Lai"}
 
 results = []
@@ -110,8 +103,7 @@ if missing_watched:
     for name in unexplained:
         print(f"  - {name}: not in fafb_entropy input at all (check {entropy_path.name})")
 
-# Flag cases with meaningful FAFB entropy despite MCNS-confirmed consistency.
-# Use both an absolute floor (0.3 bits) and the 90th percentile among matched types.
+# Require entropy above 0.3 bits and the matched-type 90th percentile.
 entropy_90th = df["fafb_entropy"].quantile(0.90) if len(df) else 0.3
 entropy_threshold = max(0.3, entropy_90th)
 print(f"\nEntropy flag threshold: {entropy_threshold:.3f} (max of 0.3 and 90th percentile)")

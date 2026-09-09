@@ -1,32 +1,13 @@
-"""
-Composite suspicion score for the FAFB correction candidates.
+"""Rank FAFB correction candidates by classifier confidence and transmitter support.
 
-Combines two independently-meaningful, directly-measured quantities:
+E1 is nt_type_score, the confidence in the flagged prediction.
+E2 is the probability assigned to the literature-verified transmitter set.
+E2 is undefined when the verified transmitter is outside FAFB's categories.
 
-  E1 (confident_wrongness): the classifier's own reported confidence
-     (nt_type_score) in the prediction we're flagging as wrong. A confident
-     wrong answer is a stronger anomaly than an unsure one -- the classifier
-     itself would have flagged low-confidence predictions as uncertain.
+    suspicion = E1 * (1 - E2)  when E2 is defined
+    suspicion = E1             otherwise
 
-  E2 (evidence_against_correct): how much probability mass the classifier's
-     internal averages (ach_avg, glut_avg, gaba_avg, da_avg, ser_avg, oct_avg)
-     assigned to the literature-verified correct transmitter. Only defined
-     when that transmitter is one of the 6 categories the classifier can
-     express at all -- for histamine blind-spot cases (R7, R8, R1-6), the
-     correct answer (HIST) has no corresponding probability column, so this
-     is structurally undefined, not just missing, and is marked N/A rather
-     than imputed.
-
-Composite:
-  Where E2 is defined:   suspicion = E1 * (1 - E2)
-  Where E2 is undefined: suspicion = E1   (categorical blind-spot cases)
-
-This is deliberately a simple, fully-explainable product of two directly
-measured quantities -- not a black-box weighted sum with tuned coefficients,
-since there is no labeled validation set to tune weights against.
-
-Usage:
-    python suspicion_score.py
+Scores prioritize review and are not calibrated probabilities of error.
 Requires data/merged_annotations.csv and corrections/corrections_fafb.csv.
 Writes corrections/corrections_fafb_scored.csv.
 """
@@ -70,7 +51,7 @@ def main():
             axis=1,
         )
     else:
-        # Explicit series preserve the output schema when no corrections exist.
+        # Preserve the output schema when no corrections exist.
         scored['E2_evidence_for_correct'] = pd.Series(dtype=float)
         scored['suspicion_score'] = pd.Series(dtype=float)
     scored['score_type'] = np.where(

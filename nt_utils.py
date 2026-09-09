@@ -13,11 +13,9 @@ def parse_verified_nts(value: str | None) -> set[str]:
 
 
 def prediction_needs_correction(current: str, verified_nts: set[str]) -> bool:
-    """
-    Return True if the classifier prediction should be flagged for review.
+    """Return whether a prediction lies outside the verified transmitter set.
 
-    Co-transmitter types (e.g. R8: ACH + HIST) only flag predictions outside the
-    verified set — ACH-predicted R8 neurons are left alone per README logic.
+    Accept verified co-transmitters, including ACH for R8.
     """
     if not verified_nts:
         return False

@@ -1,30 +1,14 @@
-"""
-Compare FAFB transmitter profiles with literature-confirmed confusion signatures.
+"""Compare FAFB transmitter profiles with literature-supported confusion signatures.
 
-Each cell type is represented as a probability vector over FAFB's six output
-categories and scored against histamine, ORN serotonin, and Dm glutamate
-seed profiles. This supports candidate discovery beyond MCNS name matches.
+Score histamine, ORN serotonin, and Dm glutamate seed profiles using
+reference-pool calibration. Heuristic columns support method comparison
+and do not determine candidate membership.
 
-CALIBRATION
------------
-Membership (in_neighborhood / is_novel_candidate / best_pattern) uses
-signature_calibration.py's exact reference-pool p-value. The scan reports
-within-pattern BH q-values and fixed-threshold heuristic columns, identified
-by the _heuristic suffix, for method comparison. Heuristic columns do not
-determine candidate membership.
-
-RECOVERY CHANNELS
------------------
-recovery_report evaluates both signature matching and entropy significance,
-recording the channel for each recovered seed in recovered_via. R1-6 and
-Dm12/Dm1 have negative entropy z-scores, so their evidence depends on geometry
-and independent transmitter validation. R1-6's geometric evidence is
-suggestive rather than formally significant. R7 is an entropy outlier whose
-leave-one-out geometry is closer to Dm seeds than to its histamine family.
-
-entropy_channel.py estimates entropy significance from aggregated category
-counts using multivariate-hypergeometric sampling, allowing recovery checks
-without the raw per-neuron annotation table.
+Recovery combines signature matching and entropy significance. R7 is an
+entropy outlier with atypical geometry within the histamine seed family.
+R1-6 has a negative entropy z-score and borderline geometric evidence;
+its transmitter classification depends on MCNS and literature evidence.
+The entropy channel uses aggregated category counts.
 """
 from __future__ import annotations
 
@@ -54,14 +38,13 @@ from paths import (
     ensure_output_dirs,
 )
 
-# Literature-confirmed seeds (Lai excluded: literature contradicts MCNS).
-# R1-6 is the motivating example: entropy z-score misses it; simplex match does not.
+# Exclude Lai because literature contradicts its MCNS histamine prediction.
 HIST_SEEDS = ("R7", "R8", "R1-6")
 ORN_SEEDS = (
     "ORN_V", "ORN_VM3", "ORN_VA2", "ORN_DA3", "ORN_DA4m",
     "ORN_DA4l", "ORN_DM2", "ORN_DM3", "ORN_DL4", "ORN_DL3",
 )
-DM_SEEDS = ("Dm12", "Dm19", "Dm1")  # literature-confirmed GLUT, FAFB-confused
+DM_SEEDS = ("Dm12", "Dm19", "Dm1")
 
 PATTERN_SEEDS = {
     "histamine_blindspot": HIST_SEEDS,
@@ -69,14 +52,13 @@ PATTERN_SEEDS = {
     "Dm_GLUT_confusion": DM_SEEDS,
 }
 
-# Fixed-threshold heuristic for method comparison only.
+# Heuristic parameters for method comparison only.
 JS_FLOOR = 0.12
 LOO_MARGIN = 1.35
 
 
 def load_entropy_table() -> pd.DataFrame:
-    """Prefer n>=10 coverage; prefer the z-scored table when present so the
-    dual-channel recovery check has a real z_score to reconstruct against."""
+    """Load the preferred entropy table, retaining z-scores when available."""
     candidates = [ENTROPY_CORRECTED_N10, ENTROPY_CORRECTED, ENTROPY_RAW_N10, ENTROPY_RAW]
     path = next((p for p in candidates if p.exists()), ENTROPY_RAW)
     df = pd.read_csv(path)
@@ -208,8 +190,6 @@ def score_types(df: pd.DataFrame) -> pd.DataFrame:
     )
     result["matched_patterns"] = result["matched_patterns"].fillna("")
 
-    # Authoritative (calibrated) membership columns, named to match what
-    # downstream consumers (plot_signature_scan.py, validate_results.py) expect.
     result["best_pattern"] = result["best_pattern_calibrated"]
     result["best_js"] = result["best_js_calibrated"]
     result["in_neighborhood"] = result["significant"]
@@ -230,7 +210,7 @@ def score_types(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _annotate_literature(scored: pd.DataFrame) -> pd.DataFrame:
-    """Attach literature NT when gt_data.csv is present — novel candidates get a check."""
+    """Attach literature transmitter annotations when gt_data.csv is available."""
     scored = scored.copy()
     scored["gt_verified_nt"] = pd.NA
     scored["gt_agrees_with_pattern"] = pd.NA
@@ -293,15 +273,10 @@ def _annotate_literature(scored: pd.DataFrame) -> pd.DataFrame:
 
 
 def recovery_report(scored: pd.DataFrame) -> dict:
-    """Did we recover the literature-confirmed seeds -- via simplex
-    neighborhood, the reconstructed entropy z-score/FDR channel, or both?
+    """Report seed recovery through signature matching, entropy significance, or both.
 
-    See module docstring: R1-6 (and, on real data, Dm12/Dm1) are only
-    reachable via simplex geometry; R7 is the reverse -- geometrically an
-    outlier within its own family, but a large, unambiguous entropy z-score
-    outlier already caught by the existing channel. A seed counts as
-    recovered if *either* channel independently catches it; `recovered_via`
-    reports which one(s), so nothing recovers silently.
+    A seed is recovered if either channel meets its criterion. recovered_via
+    identifies the contributing channels.
     """
     report = {}
     for pattern, seeds in PATTERN_SEEDS.items():
@@ -382,7 +357,6 @@ def run_scan() -> pd.DataFrame:
     novel.to_csv(novel_out, index=False)
     print(f"Saved {novel_out}")
 
-    # Compact summary for README / canvas
     summary_rows = [
         {"metric": "cell_types_scored", "value": len(scored)},
         {"metric": "seeds_recovered", "value": sum(info["n_recovered"] for info in report.values())},

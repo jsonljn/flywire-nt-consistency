@@ -1,5 +1,4 @@
-"""
-Estimate entropy significance from aggregated neurotransmitter counts.
+"""Estimate entropy significance from aggregated neurotransmitter counts.
 
 Input tables provide each cell type's nt_distribution and n_neurons.
 Under a label-shuffle null, a group's category counts follow a multivariate
@@ -34,14 +33,12 @@ def reconstruct_entropy_significance(
     n_permutations: int = 2000,
     seed: int = 42,
 ) -> pd.DataFrame:
+    """Estimate entropy p-values, BH q-values, and z-scores from aggregated counts.
+
+    Requires cell_type, n_neurons, entropy, and counts columns. The reference
+    population consists of the pooled category counts in the supplied table.
     """
-    df needs columns: cell_type, n_neurons, entropy, counts (dict, NT->count).
-    Returns cell_type, entropy_p_value, entropy_q_value (BH within this
-    table), entropy_z_reconstructed -- statistically equivalent to what
-    analysis.py's stratified_permutation_null would report, reconstructed
-    without the raw per-neuron table (see module docstring).
-    """
-    from analysis import benjamini_hochberg  # reuse the project's one BH implementation
+    from analysis import benjamini_hochberg
 
     rng = np.random.default_rng(seed)
     pooled = pooled_counts(df)
@@ -73,13 +70,7 @@ def reconstruct_entropy_significance(
 
 
 def validate_reconstruction_against_real_zscores(df_with_real_z: pd.DataFrame, **kwargs) -> pd.DataFrame:
-    """
-    Sanity check: reconstruct significance while *ignoring* the real z_score
-    column, then compare reconstructed vs. real z side by side. If the
-    reconstruction argument above is correct, these should agree closely
-    (up to Monte Carlo noise) with no systematic bias -- this is a direct,
-    checkable claim, not an assertion.
-    """
+    """Compare reconstructed z-scores with saved values, allowing for Monte Carlo variation."""
     recon = reconstruct_entropy_significance(df_with_real_z, **kwargs)
     merged = df_with_real_z[["cell_type", "z_score"]].merge(recon, on="cell_type")
     merged["abs_diff"] = (merged["z_score"] - merged["entropy_z_reconstructed"]).abs()
