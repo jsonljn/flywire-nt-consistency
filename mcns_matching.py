@@ -12,15 +12,9 @@ from name_matching import build_match_index, find_match
 
 # FAFB coarse type -> MCNS finer subtypes to aggregate
 EXPLICIT_SUBTYPE_GROUPS: dict[str, list[str]] = {
-    # NOTE: "ExR7"/"ExR8" were previously included here and must NOT be.
-    # ExR neurons are Extrinsic Ring neurons of the ellipsoid body/central
-    # complex (Hanesch et al. 1989) -- a distinct cell class, unrelated to
-    # R7/R8 photoreceptors. Their name overlaps "R7"/"R8" by coincidence.
-    # Verified against real MCNS data: ExR7 (n=4) is 100% ACH while true R7
-    # photoreceptor subtypes (R7y/R7p/R7d/R7_unclear) are 100% HIST where
-    # predicted. Including ExR7/ExR8 here broke all_subtypes_consistent for
-    # every R7/R8 lookup and silently dropped both from every downstream
-    # result. See CHANGELOG.
+    # ExR7/ExR8 are Extrinsic Ring neurons of the ellipsoid body, a separate
+    # cell class from R7/R8 photoreceptors. Only photoreceptor subtypes belong
+    # in these groups; shared name substrings do not establish type identity.
     "R7": ["R7y", "R7p", "R7d", "R7_unclear"],
     "R8": ["R8y", "R8p", "R8d", "R8_unclear"],
 }

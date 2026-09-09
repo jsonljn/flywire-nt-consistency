@@ -25,7 +25,7 @@ from paths import (
 
 ensure_output_dirs()
 
-# Prefer dedicated n>=10 entropy file; fall back to legacy name if only that exists
+# Prefer the n>=10 entropy file; fall back to the primary n>=20 table.
 if ENTROPY_RAW_N10.exists():
     entropy_path = ENTROPY_RAW_N10
 else:
@@ -42,10 +42,8 @@ print(f"FAFB cell types to check (n>=10): {len(fafb_entropy)}")
 mcns_lookup = build_mcns_nt_lookup(mcns)
 mcns_type_names = mcns["primary_type"].dropna().unique().tolist()
 
-# Known-important cell types this scan must never drop without a printed reason.
-# R7/R8/R1-6/Lai are the project's own confirmed histaminergic seeds (see README
-# "Headline result"); if any of them fails to reach `results`, that is a pipeline
-# bug, not a negative finding, and must not fail silently.
+# Report drop reasons for the four MCNS histamine comparison types.
+# Literature validation separately determines which support corrections.
 WATCH_TYPES = {"R7", "R8", "R1-6", "Lai"}
 
 results = []

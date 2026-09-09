@@ -24,7 +24,7 @@ _NUMPY_INT = re.compile(r"np\.int(?:64|32)\((\d+)\)")
 
 
 def parse_nt_distribution(raw) -> dict[str, int]:
-    """Parse a count dict from analysis.py output (JSON or legacy repr)."""
+    """Parse a count dict from analysis.py output (JSON or Python repr)."""
     if raw is None:
         return {}
     if isinstance(raw, dict):

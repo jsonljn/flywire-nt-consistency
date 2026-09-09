@@ -1,4 +1,4 @@
-"""Before/after summary figure for the signature_scan calibration fix."""
+"""Compare candidate selection methods and literature validation outcomes."""
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
@@ -18,9 +18,9 @@ n_calibrated = int(scored["is_novel_candidate"].sum())
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 5), gridspec_kw={"width_ratios": [1, 1.3]})
 
-# ── Left: flagged fraction, before vs after ──
+# ── Left: candidate fraction by method ──
 bars = ax1.bar(
-    ["Original heuristic\n(LOO max x 1.35)", "Calibrated exact test\n(this fix)"],
+    ["Distance heuristic\n(LOO max x 1.35)", "Calibrated exact test\n(reference-pool null)"],
     [n_heuristic / n_total * 100, n_calibrated / n_total * 100],
     color=["#d62728", "#2ca02c"],
     width=0.55,
@@ -32,11 +32,11 @@ for bar, n in zip(bars, [n_heuristic, n_calibrated]):
         ha="center", va="bottom", fontsize=11, fontweight="bold",
     )
 ax1.set_ylabel("FAFB cell types flagged as\n'novel confusion candidate' (%)")
-ax1.set_title("The bug: 80% of all cell types\nwere being flagged")
+ax1.set_title("Candidate selection by method")
 ax1.set_ylim(0, 95)
 ax1.spines[["top", "right"]].set_visible(False)
 
-# ── Right: what survives the fix, literature-checked ──
+# ── Right: literature validation of calibrated candidates ──
 # Uses the same precise logic as build_signature_corrections.py (agreement
 # with the *actual* verified transmitter set, not just the pattern's
 # expected direction) so this figure and that script's CSVs always tell the
@@ -54,8 +54,7 @@ if len(confirmed):
         lambda r: prediction_needs_correction(r["dominant_nt"], r["verified_set"]), axis=1
     )
 else:
-    # Same pandas .apply(axis=1) empty-frame edge case fixed in
-    # build_signature_corrections.py; see CHANGELOG.
+    # Preserve the boolean output column when no candidates have literature.
     confirmed["needs_correction"] = pd.Series(dtype=bool)
 
 counts = pd.Series({
@@ -70,7 +69,7 @@ for bar, n in zip(bars2, counts.values):
         ax2.annotate(str(n), (bar.get_x() + bar.get_width() / 2, bar.get_height()),
                      ha="center", va="bottom", fontsize=11, fontweight="bold")
 ax2.set_ylabel(f"Novel candidates (of {n_calibrated} total)")
-ax2.set_title("What survives the fix, checked against\nreal literature ground truth")
+ax2.set_title("Literature evidence for\ncalibrated candidates")
 ax2.spines[["top", "right"]].set_visible(False)
 
 fig.suptitle(

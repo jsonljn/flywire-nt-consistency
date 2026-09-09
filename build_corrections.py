@@ -1,20 +1,16 @@
 """
-Build the deliverable Arie requested: a list of corrections, one per dataset.
+Build literature-supported neuron correction lists for FAFB and MCNS.
 
-For every FAFB cell type that is:
-  (a) flagged as inconsistent by the entropy method, AND
-  (b) confirmed by literature ground truth (not contradicted, not just MCNS-only)
+For each supported cell type in the cross-dataset candidate table, list
+neurons whose predicted transmitter is outside the literature-verified set,
+with evidence and proposed action attached. Verified co-transmitters are
+accepted, including acetylcholine for R8.
 
-...list every individual neuron whose current predicted NT does not match the
-literature-verified transmitter(s), with the evidence attached.
+Lai is excluded because literature contradicts its MCNS histamine prediction.
+Dm16, Dm20, and Dm6 lack conclusive literature matches and are listed separately.
+Dm9 is supported by direct literature evidence recorded in the validation table.
 
-Excludes:
-  - Lai (contradicted by literature -- MCNS said HIST, literature says GLUT)
-  - Dm16, Dm20, Dm6, Dm9 (no literature match found -- unconfirmed, listed separately)
-
-Also checks MCNS itself for any individual neurons within these same cell types
-whose prediction disagrees with the literature-verified transmitter, since a
-correction list should cover the dataset it applies to, not just FAFB.
+MCNS predictions are checked against the same verified transmitter sets.
 """
 import pandas as pd
 

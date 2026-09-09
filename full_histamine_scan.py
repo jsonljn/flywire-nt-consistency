@@ -1,5 +1,5 @@
 """
-Full scan: for every FAFB cell type (not just the 4 already confirmed),
+For every FAFB cell type in the entropy table,
 check if a matching MCNS cell type exists and what MCNS's dominant NT is.
 
 This flags any FAFB cell type where:
@@ -29,8 +29,8 @@ mcns_lookup = build_mcns_nt_lookup(mcns)
 mcns_type_names = mcns["primary_type"].dropna().unique().tolist()
 print(f"MCNS cell types available: {len(mcns_lookup)}")
 
-# See general_scan_n10.py's WATCH_TYPES for why this matters: these are the
-# project's own confirmed histaminergic seeds and must never drop silently.
+# Report drop reasons for the MCNS histamine comparison types, as in
+# general_scan_n10.py; literature validation determines correction eligibility.
 WATCH_TYPES = {"R7", "R8", "R1-6", "Lai"}
 
 results = []

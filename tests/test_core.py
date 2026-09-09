@@ -55,34 +55,17 @@ class TestNameMatching:
 
 class TestMcnsMatching:
     def test_range_notation(self):
-        # NOTE: this fixture assumes the real MCNS primary_type value is
-        # spelled exactly "R1-R6". That assumption is NOT verified against
-        # real data anywhere in this repo (data/ is gitignored) and must not
-        # be treated as proof that R1-6 actually matches in production; see
-        # README "Known gap" and the fragility test below.
+        # Range normalization maps the abbreviated FAFB name to the full range.
         names = ["R1-R6", "R7y", "R7p", "Dm1", "Dm12", "Dm1a"]
         assert resolve_fafb_to_mcns("R1-6", names) == (["R1-R6"], "range_notation")
 
-    def test_r1_6_range_notation_hypothesis_was_a_dead_end(self):
-        # This test originally claimed to document "the likely real root
-        # cause" of the R1-6 gap: that R1-6 might need a subtype-group
-        # fallback the way R7/R8 have. That turned out to be wrong -- see
-        # CHANGELOG. R1-6 never needed a fix; it resolves via range notation
-        # exactly as originally written, verified against real MCNS data
-        # (n=4,090, 81.9% ACH, MCNS confirms 750/750 HIST). Kept as a
-        # regression check that plain range notation still works, not as
-        # evidence about what was actually broken.
+    def test_r1_6_matches_combined_range_name(self):
+        # R1-6 uses range notation without a photoreceptor subtype group.
         combined_name = ["R1-R6", "R7y", "R7p"]
         assert resolve_fafb_to_mcns("R1-6", combined_name) == (["R1-R6"], "range_notation")
 
     def test_exr7_exr8_excluded_from_r7_r8_subtype_groups(self):
-        # The real bug (see CHANGELOG "R1-6/R7/R8 resolved against real MCNS
-        # data"): EXPLICIT_SUBTYPE_GROUPS used to include "ExR7"/"ExR8",
-        # Extrinsic Ring neurons of the ellipsoid body (Hanesch et al. 1989),
-        # an unrelated cell class that shares a name substring with the R7/R8
-        # photoreceptors. Real MCNS data: ExR7 is 100% ACH, true R7 subtypes
-        # are 100% HIST, so all_subtypes_consistent failed for every R7/R8
-        # lookup and both were silently dropped. This must never regress.
+        # Extrinsic Ring neurons must not contaminate photoreceptor subtype counts.
         from mcns_matching import EXPLICIT_SUBTYPE_GROUPS
         assert "ExR7" not in EXPLICIT_SUBTYPE_GROUPS["R7"]
         assert "ExR8" not in EXPLICIT_SUBTYPE_GROUPS["R8"]
@@ -163,13 +146,7 @@ class TestStratifiedNull:
         assert row["z_score"] > 0
 
     def test_bincount_matches_add_at(self):
-        """analysis.py's permutation-counting step was rewritten from
-        np.add.at to a flattened-index np.bincount for speed (~1.7x at this
-        project's real scale -- 139k neurons / 402 types / 1000 permutations,
-        benchmarked directly, not estimated). Confirm the two are not just
-        both plausible but bit-for-bit identical, so the speedup could not
-        have silently changed any entropy, z-score, or p-value in this
-        project's results."""
+        """Vectorized bincount and indexed accumulation produce identical counts."""
         rng = np.random.default_rng(3)
         n_types, n_nt, n = 50, 6, 5000
         type_codes = rng.integers(0, n_types, size=n)
@@ -470,12 +447,7 @@ class TestSignatureScan:
         assert check["abs_diff"].median() < 0.5
 
     def test_signature_scan_matches_validated_real_data_numbers(self):
-        """Integration test against the real, committed project data --
-        deliberately not the small synthetic fixture (see the previous two
-        tests' docstrings for why small-M behavior is harder to pin down).
-        These bounds are the actual, manually-validated numbers from running
-        this module against results/entropy_raw.csv end to end (see
-        CHANGELOG.md); this locks them in as a regression check."""
+        """Validate candidate prevalence and seed recovery against committed result data."""
         from signature_scan import load_entropy_table
         from paths import ENTROPY_RAW
 
@@ -489,7 +461,7 @@ class TestSignatureScan:
         novel_fraction = scored["is_novel_candidate"].mean()
         assert 0.01 < novel_fraction < 0.15, (
             f"got {novel_fraction:.1%} -- should be a small, reviewable minority, "
-            "not the original bug's 80% and not zero"
+            "between 1% and 15% of scored types"
         )
         assert report["ORN_SER_confusion"]["n_recovered"] >= 7
         assert report["Dm_GLUT_confusion"]["n_recovered"] >= 1
@@ -500,13 +472,9 @@ class TestSignatureScan:
 
 
     def test_r1_6_not_formally_significant_but_notably_close(self):
-        """R1-6 is the case entropy structurally cannot see (negative z) and
-        the honest simplex result for it, even on real project data, is
-        borderline (p~0.066) rather than a clean pass -- see
-        signature_calibration.py's docstring and CHANGELOG.md. This is not a
-        bug to hide: it should stay closer to the seeds than an unrelated
-        clean type, without being asserted into a false "recovered" claim
-        this test suite cannot honestly make."""
+        """R1-6 is closer to histamine seeds than an unrelated clean type.
+
+        Its borderline geometric evidence does not imply formal recovery."""
         scored = score_types(self._tiny_entropy_frame())
         r16 = scored[scored["cell_type"] == "R1-6"].iloc[0]
         clean = scored[scored["cell_type"] == "CleanGABA"].iloc[0]
@@ -518,9 +486,7 @@ class TestSignatureScan:
         assert row["is_novel_candidate"] in (False, 0)
 
     def test_clean_gaba_type_is_not_a_novel_candidate(self):
-        """Regression guard for the Dm_GLUT_confusion analogue of the ACH
-        over-flagging bug: an unremarkable GABA type must not match just for
-        sharing GABA/GLUT dominance with Dm12/Dm1."""
+        """GABA dominance alone does not establish a Dm confusion signature."""
         scored = score_types(self._tiny_entropy_frame())
         row = scored[scored["cell_type"] == "CleanGABA"].iloc[0]
         assert row["is_novel_candidate"] in (False, 0)
@@ -548,27 +514,15 @@ class TestSignatureScan:
         assert row["p_ORN_SER_confusion"] < 0.05
 
     def test_flagged_fraction_is_bounded(self):
-        """Regression guard for the original bug: a pooled, outlier-inflated
-        threshold flagged 322/402 (80%) of all real cell types as "novel."
-        On this fixture the flagged fraction must stay well under half --
-        80%-style blowups should fail loudly."""
+        """The candidate screen flags fewer than half of the synthetic cell types."""
         scored = score_types(self._tiny_entropy_frame())
         assert scored["is_novel_candidate"].mean() < 0.5
 
     def test_background_types_are_rarely_flagged(self):
-        """The ~27 deliberately unrelated background types (spanning every
-        dominant category) should be flagged only at roughly the rate a
-        raw p<0.05 threshold implies by construction, not systematically.
-        27 types x 3 patterns = 81 comparisons; at p<0.05 uncorrected (this
-        module's docstring explains why raw p, not BH-FDR, is the primary
-        tier here -- the same reasoning applies to this fixture), a handful
-        of coincidental matches is the expected, healthy false-positive rate
-        this significance level implies, not a bug -- exactly the behavior
-        the real analysis also shows (see CHANGELOG.md: 14 novel candidates
-        on real data, of which literature independently contradicts one --
-        Mi15 -- which is what a well-calibrated p<0.05 screen should
-        occasionally produce). This asserts the rate stays in that expected
-        ballpark, not that it is zero."""
+        """Unrelated background types have a low candidate rate.
+
+        Multiple p < 0.05 comparisons can produce occasional coincidental
+        matches; the expected background candidate rate is low, not zero."""
         scored = score_types(self._tiny_entropy_frame())
         bg_names = [r[0] for r in self._background_rows()]
         bg = scored[scored["cell_type"].isin(bg_names)]

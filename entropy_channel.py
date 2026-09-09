@@ -1,34 +1,17 @@
 """
-Reconstructs the entropy channel's permutation-based significance (p-value,
-q-value) from the aggregated entropy table alone -- no raw per-neuron table
-needed.
+Estimate entropy significance from aggregated neurotransmitter counts.
 
-WHY THIS EXISTS
-----------------
-analysis.py's `stratified_permutation_null` computes an exact one-sided
-permutation p-value for every cell type's entropy from the *raw* per-neuron
-annotation table, and does save that p-value (and its BH q-value) into its
-output. But the currently-committed `results/entropy_corrected.csv` snapshot
-in this bundle predates that column being written (it only has `z_score`),
-and `data/merged_annotations.csv` (the raw table) is gitignored and not part
-of this bundle -- so the p-value/q-value can't simply be read back or re-run
-from source.
+Input tables provide each cell type's nt_distribution and n_neurons.
+Under a label-shuffle null, a group's category counts follow a multivariate
+hypergeometric distribution parameterized by pooled category counts and
+group size. Sampling this distribution reconstructs per-type null entropies
+without a raw per-neuron annotation table.
 
-This reconstructs it anyway, *exactly*, from what the committed table already
-has: each type's `nt_distribution` counts and `n_neurons`. The permutation
-argument still applies without the raw table because of a standard fact
-about random partitions: under `stratified_permutation_null`'s full-dataset
-label shuffle, a single type's resulting category counts are marginally
-distributed as an exact multivariate hypergeometric draw -- population =
-the pooled counts across every labeled neuron in the dataset, sample size =
-that type's own n_neurons. Sampling directly from that exact distribution
-reproduces the same per-type null the original function would have built
-from the raw table. This is not a normal-theory approximation on z (which is
-what an earlier version of the dual-channel check used, out of necessity --
-see CHANGELOG.md); it's the same permutation logic, applied to a sufficient
-statistic (pooled counts + group size) instead of the full raw table. See
-`validate_reconstruction_against_real_zscores` for a direct empirical check
-of this claim against the project's own real, already-computed z-scores.
+The reference population is the pooled counts in the supplied table, so its
+coverage determines the null. Monte Carlo estimates provide one-sided
+p-values, within-table BH q-values, and reconstructed z-scores.
+validate_reconstruction_against_real_zscores compares these estimates with
+the saved analysis z-scores.
 """
 from __future__ import annotations
 

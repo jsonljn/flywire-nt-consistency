@@ -2,9 +2,9 @@
 End-to-end pipeline runner for the FlyWire NT consistency project.
 
 Usage:
-    py -3.13 run_pipeline.py              # full pipeline (requires data/)
-    py -3.13 run_pipeline.py --figures    # regenerate figures from existing results
-    py -3.13 run_pipeline.py --validate   # validate README claims only
+    python run_pipeline.py              # full pipeline (requires data/)
+    python run_pipeline.py --figures-only    # regenerate figures from existing results
+    python run_pipeline.py --validate-only   # validate README claims only
 """
 from __future__ import annotations
 
@@ -104,7 +104,7 @@ def main() -> None:
         run_step("Pattern summary figures", "plot_patterns.py")
     if (ROOT / "results" / "signature_scan.csv").exists():
         run_step("Signature scan figures", "plot_signature_scan.py")
-        run_step("Calibration before/after figure", "plot_calibration_comparison.py")
+        run_step("Calibration method comparison figure", "plot_calibration_comparison.py")
     run_step("Validate README claims", "validate_results.py")
 
     print("\n" + "=" * 70)

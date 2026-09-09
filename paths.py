@@ -13,7 +13,7 @@ MCNS_MERGED = DATA_MCNS / "merged_annotations.csv"
 GT_DATA = DATA / "gt_data.csv"
 FAFB_CONNECTIONS = DATA / "connections.csv"
 
-# Primary screen (n >= 20) — keep legacy filenames for backward compatibility
+# Primary screen (n >= 20)
 ENTROPY_RAW = RESULTS / "entropy_raw.csv"
 ENTROPY_CORRECTED = RESULTS / "entropy_corrected.csv"
 

@@ -70,11 +70,7 @@ def main():
             axis=1,
         )
     else:
-        # Same pandas .apply(axis=1)-on-empty-frame edge case fixed in
-        # build_signature_corrections.py and plot_calibration_comparison.py;
-        # hasn't triggered here yet since corrections_fafb.csv has always
-        # had rows, but the risk is identical if it's ever empty. See
-        # CHANGELOG.
+        # Explicit series preserve the output schema when no corrections exist.
         scored['E2_evidence_for_correct'] = pd.Series(dtype=float)
         scored['suspicion_score'] = pd.Series(dtype=float)
     scored['score_type'] = np.where(

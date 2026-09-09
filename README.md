@@ -1,247 +1,202 @@
 # Neurotransmitter Consistency Within Cell Types Across FlyWire Connectomes
 
-Tests whether neurons sharing a cell type label agree on their predicted neurotransmitter, as Dale's law would suggest, and traces the strongest outliers to their actual cause.
+Analyze whether neurons sharing a cell type label agree on their predicted neurotransmitter. The project combines entropy screening, cross-dataset comparison, confusion-signature matching, and literature validation to identify systematic classifier errors in FlyWire FAFB v783 and MCNS v1.0.
 
-## Headline result
+## Overview
 
-An unbiased screen of 402 FAFB cell types found only 2 statistically significant outliers by neurotransmitter inconsistency: **R7 and R8**, the fly's photoreceptors. Cross-dataset comparison against MCNS then revealed why: **FAFB's neurotransmitter classifier (Eckstein et al., Cell 2024) only predicts six neurotransmitters, and histamine is not one of them**, despite photoreceptors being canonically histaminergic. As a result, every histaminergic neuron in FAFB gets force-classified into one of the six other categories, and which category varies neuron to neuron, producing exactly the high-entropy signal this project was built to detect.
+The primary screen covers **402 FAFB cell types** with at least 20 labeled neurons. Two types, **R7 and R8**, exceed the size-corrected entropy threshold of z > 2. Both are photoreceptors with literature-verified histamine signaling, a transmitter outside FAFB's six prediction categories.
 
-This was cross-checked against MCNS (whose classifier does include histamine): R7, R8, Lai, and R1-6 all sit in the extreme right tail of FAFB's entropy distribution (93rd-99th percentile), and FAFB predicts zero histamine anywhere in its 139,255-neuron dataset. A subsequent check against literature ground truth confirmed the histamine explanation for R7 and R8 (and R1-6 at the n>=20 threshold), but **overturned it for Lai**: MCNS's classifier says Lai is histaminergic, but literature (Davis et al. 2020) verifies it as glutamatergic. Lai is excluded from the final correction list; see "Deliverable" section below.
+The broader analysis covers **702 cell types** with at least 10 members and identifies three patterns: a histamine category gap, serotonin predictions in cholinergic olfactory receptor neurons, and GABA/acetylcholine predictions in glutamatergic Dm neurons. Literature validation supports **5,387 proposed FAFB neuron corrections across 17 cell types** and **1 MCNS neuron correction**. A complementary confusion-signature scan identifies **4 additional cell types** with literature-supported prediction mismatches.
 
-A follow-up method, **confusion-signature matching**, shows why entropy alone is the wrong instrument for the largest histaminergic type. R1-6 has 4,090 neurons and is 82% predicted ACH, so the size-corrected Dale's-law z-score is *negative* (more consistent than a random label shuffle). The type is still systematically wrong. Representing each cell type as a point on the 6-simplex of FAFB outputs and testing distance to literature-confirmed fingerprints against a permutation-calibrated null (see "Recalibrating the confusion-signature scan" below) recovers R7 and R8 (via the existing entropy channel, since both are already large z-score outliers) without any MCNS name match, and surfaces R1-6 as notably, if not overwhelmingly, closer to that fingerprint than the rest of the dataset (p~0.07): a real signal, honestly reported as suggestive rather than airtight on geometry alone. R1-6's classification rests primarily on the independent MCNS + literature evidence in the sections below, exactly as it should.
-
-**Fully resolved.** R7, R8, Lai, and R1-6 all now correctly appear as the project's confirmed categorical-blindspot cases, backed by real FAFB (Codex v783) and MCNS (Codex v1.0) data end to end. The gap that had kept R1-6 and, separately, R7/R8 out of earlier results was two unrelated bugs in `mcns_matching.py`: `EXPLICIT_SUBTYPE_GROUPS` incorrectly included `"ExR7"`/`"ExR8"` (Extrinsic Ring neurons of the ellipsoid body, an unrelated cell class that happens to share a name substring with the R7/R8 photoreceptors), which broke every R7/R8 lookup; R1-6 itself was never actually broken. Both are fixed and verified: 25/25 `validate_results.py` checks pass, 41/41 tests pass. Full debugging history, including two rejected hypotheses along the way, is in CHANGELOG.
-
-`general_scan_n10.py` and `full_histamine_scan.py` log a `WARNING` with the exact drop reason if any of R7/R8/R1-6/Lai ever fail to reach `results` again, so this class of bug can't recur silently.
+MCNS predictions provide an independent classifier comparison; literature evidence determines which candidates enter the correction lists. This distinction matters for **Lai**: MCNS predicts histamine, while literature verifies glutamate, so Lai is excluded from the histamine corrections. **R8** has verified acetylcholine and histamine co-transmission, so its acetylcholine predictions are accepted.
 
 ![Histamine blindspot](figures/histamine_blindspot.png)
 
+## Setup and data
 
-## Reproducing
+Install the Python dependencies:
 
-**FAFB:**
-1. Download from Codex (codex.flywire.ai, FAFB v783, Download Data page):
-   - Neurotransmitter Type Predictions -> `data/neurons.csv`
-   - Cell Types -> `data/cell_types.csv`
-   - Classification / Hierarchical Annotations -> `data/classification.csv`
-2. Run:
-   ```
-   python merge_data.py
-   python analysis.py data/merged_annotations.csv
-   ```
-
-**MCNS:**
-1. Download from Codex (switch dataset to MCNS v1.0, Download Data page):
-   - Neuron Attributes -> `data_mcns/neurons.csv`
-2. Run:
-   ```
-   python normalize_mcns.py
-   python analysis.py data_mcns/merged_annotations.csv
-   ```
-
-**Cross-dataset check:**
+```bash
+python -m pip install -r requirements.txt
 ```
+
+The analysis uses pandas, NumPy, SciPy, Matplotlib, and scikit-learn; pytest runs the test suite.
+
+Download annotation exports from [FlyWire Codex](https://codex.flywire.ai):
+
+- **FAFB v783:** Neurotransmitter Type Predictions as `data/neurons.csv`, Cell Types as `data/cell_types.csv`, and Classification / Hierarchical Annotations as `data/classification.csv`.
+- **MCNS v1.0:** Neuron Attributes as `data_mcns/neurons.csv`.
+- **Connectivity analysis:** FAFB Connections (Filtered) as `data/connections.csv`.
+
+For literature validation, download `gt_data.csv` from [flyconnectome/drosophila_neurotransmitters](https://github.com/flyconnectome/drosophila_neurotransmitters) into `data/gt_data.csv`. The database records verified neurotransmitters, source citations, and confidence scores. Dm9 uses direct literature evidence documented below.
+
+Raw and merged annotation exports are gitignored. The repository includes analysis results, correction lists, and figures.
+
+## Reproducing the analysis
+
+With the input files in place, run the pipeline:
+
+```bash
+python run_pipeline.py
+```
+
+Use `--skip-connectivity` to omit connectivity analysis, `--figures-only` to regenerate the pipeline's summary figures from saved results, or `--validate-only` to check the saved results.
+
+To run the annotation preparation and entropy screens individually:
+
+```bash
+python merge_data.py
+python normalize_mcns.py
+python analysis.py data/merged_annotations.csv
+python analysis.py data/merged_annotations.csv --min-members 10
+```
+
+For the cross-dataset and literature checks:
+
+```bash
+python full_histamine_scan.py
 python histamine_pattern_check.py
+python general_scan_n10.py
+python three_patterns_summary.py
+python validate_against_literature.py
+python build_corrections.py
+```
+
+The confusion-signature scan can run from the saved entropy tables without raw neuron annotations. It prefers the n>=10 table when available. Its literature annotations and correction export require `data/gt_data.csv`:
+
+```bash
 python signature_scan.py
+python build_signature_corrections.py
 python plot_signature_scan.py
 ```
-Requires both `data/merged_annotations.csv` and `data_mcns/merged_annotations.csv` to already exist, plus `results/entropy_raw.csv` from the FAFB run.
 
-`signature_scan.py` needs only `results/entropy_raw.csv` (or `entropy_raw_n10.csv`). Its literature cross-check (`gt_verified_nt`/`gt_agrees_with_pattern` columns, and `build_signature_corrections.py`) additionally needs `data/gt_data.csv`, the same file as the "Deliverable" section below; download from [flyconnectome/drosophila_neurotransmitters](https://github.com/flyconnectome/drosophila_neurotransmitters).
+Generate the per-neuron priority scores after building the correction lists:
 
-Requires: pandas, numpy, scipy, matplotlib.
+```bash
+python suspicion_score.py
+python suspicion_score_mcns.py
+python suspicion_score_plot.py
+```
 
-## Method
+Validate the saved outputs and run the tests:
 
-For each cell type with at least 20 labeled members:
-1. Compute Shannon entropy of the neurotransmitter prediction distribution
-2. Build a stratified permutation null (1000 shuffles) that preserves both the overall neurotransmitter counts and each cell type's group size, to avoid flagging small groups as inconsistent just by chance
-3. Compute a size-corrected z-score per cell type from this null
+```bash
+python validate_results.py
+python -m pytest -q
+```
 
-The permutation null is vectorized (flattened-index `numpy.bincount` per shuffle, ~1.7x faster than an earlier `numpy.add.at` version at this dataset's real scale, 139k neurons / 402 types / 1000 permutations, benchmarked directly; both produce bit-for-bit identical counts, checked in `tests/test_core.py`) so 1000 permutations stay cheap.
+## Methods
 
-Entropy cannot catch a large type that is *consistently assigned the wrong transmitter*. For that:
+### Entropy screening
 
-1. Parse each type's NT counts as a point on the 6-simplex (ACH, GABA, GLUT, DA, SER, OCT)
-2. Score leave-one-out Jensen-Shannon distance to literature-confirmed fingerprints (histamine: R7/R8/R1-6; ORN SER confusion; Dm GLUT confusion)
-3. Test that distance against an exact permutation p-value (not a fixed threshold); see "Recalibrating the confusion-signature scan" below for why this replaced an earlier fixed-threshold version that flagged 80% of the dataset
-4. Cross-check "recovery" of the seeds against *both* this simplex test and the existing entropy z-score/FDR channel: some seeds (R7, R8) are large entropy outliers already caught by the original method; others (R1-6, Dm12, Dm1) are only reachable geometrically. Nothing is required to recover via a specific channel; `signature_scan.py`'s `recovery_report` reports which channel(s) actually caught each seed.
+For each cell type with at least 20 labeled members, `analysis.py` computes Shannon entropy of the neurotransmitter prediction distribution. A stratified permutation null with 1,000 shuffles preserves the overall transmitter counts and each cell type's group size. The resulting z-scores measure inconsistency relative to this null; permutation p-values and Benjamini-Hochberg q-values provide significance estimates.
 
-For the cross-dataset check:
-1. From MCNS, find cell types the classifier labels >=90% consistently as histaminergic
-2. Match those cell types to FAFB by name (exact match, or stripping MCNS subtype suffixes like `R7y` -> `R7`)
-3. Compare FAFB's raw entropy for those matched types against the full FAFB entropy distribution
+Permutation counts use a vectorized, flattened-index `numpy.bincount`. The n>=10 analysis applies the same method with broader cell-type coverage.
 
-## Results in detail
+### Cross-dataset comparison
 
-### FAFB, single-dataset screen (402 cell types, >=20 members)
+The histamine check selects MCNS cell types with at least 90% histamine predictions, matches them to FAFB, and compares their FAFB entropy with the full distribution. The general scan extends this comparison to any consistently predicted MCNS transmitter.
 
-Only 2 significant outliers at z > 2:
+`name_matching.py` supports case/whitespace-insensitive exact matches and equivalent range notation such as `R1-6` / `R1-R6`. `mcns_matching.py` explicitly aggregates the R7/R8 photoreceptor subtypes and supports constrained subtype suffixes. Extrinsic Ring neurons (`ExR7`, `ExR8`) belong to a separate cell class and are excluded from photoreceptor groups. Names without a supported match remain unmatched.
 
-| Cell type | n | entropy | z-score | dominant NT (wrong) |
-|---|---|---|---|---|
-| R7 | 474 | 1.62 | 7.55 | GLUT (44%) |
-| R8 | 475 | 1.38 | 3.47 | ACH (58%) |
+### Confusion-signature matching
 
-### Cross-dataset validation
+Entropy measures inconsistency, so it can miss a type that is consistently assigned the wrong transmitter. R1-6 illustrates this limitation: its 4,090 neurons are approximately 82% predicted acetylcholine, giving it a negative entropy z-score despite literature-verified histamine signaling.
 
-MCNS subtypes R7y, R7p, R7d, R8y, R8p, R8d, and their "unclear" bins are all **100% histamine**, zero entropy, matching well-established fly photoreceptor biology. FAFB predicts **zero histamine anywhere** in its 139,255-neuron dataset, consistent with the classifier's fixed six-category output (ACh, GABA, glutamate, dopamine, octopamine, serotonin; histamine explicitly listed as unsolved in Eckstein et al., Cell 2024).
+`signature_scan.py` represents each cell type as a probability vector over FAFB's six output categories: ACH, GABA, GLUT, DA, SER, and OCT. It measures Jensen-Shannon divergence to literature-confirmed seed profiles for the histamine, ORN serotonin, and Dm glutamate patterns. Seed scoring uses leave-one-out comparisons.
 
-Four FAFB cell types independently confirmed histaminergic via MCNS:
+`signature_calibration.py` calibrates each distance against other real, non-seed cell types. For a candidate and a pattern with k available seeds, let `q_close` be the fraction of reference profiles at least as close as the nearest seed, with an add-one-half continuity correction. The probability of at least one equally close match among k independent reference draws is:
 
-| Cell type | FAFB entropy | Percentile vs. all 402 FAFB types | FAFB dominant (wrong) NT |
-|---|---|---|---|
-| R7 | 1.625 | ~99th | GLUT (44%) |
-| R8 | 1.376 | ~98th | ACH (58%) |
-| Lai | 1.239 | ~97th | GABA (50%) |
-| R1-6 | 0.853 | 93rd | ACH (82%) |
+```text
+p = 1 - (1 - q_close) ** k
+```
 
-Mean entropy of the 4 confirmed-histaminergic types: 1.27. Mean entropy across all 402 FAFB cell types: 0.16.
+The scan selects the best pattern by calibrated p-value and uses p < 0.05 to generate candidates. It also reports within-pattern Benjamini-Hochberg q-values. These exploratory candidates require independent literature validation; geometric proximity alone does not establish a transmitter correction.
 
-## Interpretation
+Calibration depends on the size and composition of the reference pool. Small pools limit significance resolution, and common acetylcholine-dominant profiles are less distinctive than rare confusion signatures.
 
-The original R7/R8 finding is not genuine biological heterogeneity (e.g. distinct functional subtypes disagreeing on transmitter) and not random annotation noise. It is a systematic, predictable consequence of a documented classifier limitation: neurons that are truly histaminergic cannot ever be correctly classified by FAFB's 6-category model, and instead get distributed across whichever of the 6 available categories best matches their synapse ultrastructure, inconsistently across neurons of the same true type, which is exactly what produces high measured entropy.
+`recovery_report` evaluates both signature matching and entropy significance. `entropy_channel.py` estimates the entropy channel from aggregated category counts using multivariate-hypergeometric sampling. R7 is detected through entropy even though its leave-one-out geometry is closer to the Dm pattern. R1-6's geometric evidence is suggestive (p approximately 0.07); its histamine classification rests on MCNS and literature evidence.
 
-This reframes the "correction" question. Rather than flagging individual neurons as mislabeled, the useful output is: **any FAFB cell type with unexpectedly high NT entropy is a candidate for being a real histaminergic (or other missing-category) population**, not necessarily a genuinely inconsistent one. This is a testable, generalizable flag the FlyWire annotation team could use to find other histamine-blind-spot cell types beyond the 4 confirmed here.
+## Results
 
-## Connectivity comparison: does the wrong label carry real structure?
+### Photoreceptors and the histamine category gap
 
-Knowing FAFB's classifier can never predict histamine for R7/R8 raises a follow-up question: when it's forced to guess among its 6 wrong categories, is that guess random noise, or does it correlate with something real, such as the neuron's true anatomical subtype? Built per-neuron output connectivity profiles (normalized synapse weight to the top 30 downstream partner cell types) and tested whether neurons sharing the same (wrong) NT label are more similar to each other than to neurons with a different label.
+In the n>=20 FAFB screen, the two z > 2 outliers are:
+
+- **R7:** 474 neurons, entropy 1.625 bits, z = 7.55; dominant FAFB prediction GLUT (44%).
+- **R8:** 475 neurons, entropy 1.376 bits, z = 3.47; dominant FAFB prediction ACH (58%).
+
+FAFB predicts no histamine among its 139,255 neurons. Its classifier supports acetylcholine, GABA, glutamate, dopamine, serotonin, and octopamine. Histamine is outside that output vocabulary, as documented by Eckstein et al. (2024).
+
+MCNS's R7 and R8 photoreceptor subtypes have 100% histamine predictions. The four types selected by the MCNS histamine comparison sit in the upper tail of FAFB's entropy distribution: R7 at approximately the 99th percentile, R8 at the 98th, Lai at the 97th, and R1-6 at the 93rd. Their mean entropy is 1.27 bits, compared with 0.16 across all 402 types.
+
+Literature supports histamine for R7, R8, and R1-6. Lai's literature-verified glutamate contradicts its MCNS prediction. R8's verified acetylcholine co-transmission also means that not every non-histamine prediction is an error. High entropy is therefore a screening signal that requires transmitter-specific evidence.
+
+### Broader patterns at n>=10
+
+The sensitivity screen covers 702 cell types and yields 21 candidates across three patterns:
+
+- **Histamine category gap:** R7, R8, Lai, and R1-6 are selected by the MCNS comparison; literature supports the photoreceptors and excludes Lai.
+- **ORN serotonin confusion:** 10 of 53 MCNS-matched, cholinergic ORN types are predominantly predicted serotonergic in FAFB: ORN_V, ORN_VM3, ORN_VA2, ORN_DA3, ORN_DA4m, ORN_DA4l, ORN_DM2, ORN_DM3, ORN_DL4, and ORN_DL3. The other 43 are predominantly acetylcholine with near-zero entropy.
+- **Dm glutamate confusion:** 7 of 13 MCNS-matched, glutamate-predicted Dm types are predominantly predicted GABA or acetylcholine in FAFB: Dm12, Dm16, Dm20, Dm19, Dm1, Dm6, and Dm9. Literature supports corrections for Dm12, Dm19, Dm1, and Dm9; the other three remain unconfirmed.
+
+These results are recorded in `results/general_scan_n10_full.csv` and `results/three_confusion_patterns.csv`. Some candidates have only 10-17 FAFB neurons, and MCNS is itself a classifier output, so the screening results should be interpreted alongside the literature evidence.
+
+### Confusion-signature candidates
+
+The signature scan flags **28 of 702 cell types (4.0%)** as candidates outside the seeds and name-matched set. Literature comparison identifies:
+
+- **4 prediction mismatches:** TmY16 (FAFB GABA, literature GLUT), vDeltaA_b (SER, ACH), WEDPN6B (GLUT, GABA), and hDeltaK (SER, ACH).
+- **3 types whose dominant prediction agrees with literature:** Mi15, ORN_DM5, and PFGs.
+- **21 types without a literature match:** listed in `corrections/signature_scan_novel_unconfirmed.csv`.
+
+TmY16 and hDeltaK have direct entries in `gt_data.csv` citing Nern et al. (2024) and Wolff et al. (2024), respectively. TmY16, vDeltaA_b, and hDeltaK extend the confusion patterns beyond the ORN and Dm name families. WEDPN6B's literature answer differs from its matched pattern's expected transmitter; its correction is supported by the direct FAFB-versus-literature disagreement.
+
+These cell-type findings are recorded in `corrections/corrections_signature_scan_novel.csv`, separately from the neuron-level, name-matched correction lists so each result retains its method of discovery.
+
+### Connectivity and predicted transmitter labels
+
+`connectivity_comparison.py` tests whether FAFB transmitter predictions correspond to connectivity structure. It builds normalized output profiles over the top 30 downstream partner types, using connections with at least five synapses, and compares within-label and between-label similarity with 2,000 permutations.
 
 ![Connectivity PCA](figures/connectivity_pca.png)
 
-| Cell type | n | within-label sim | between-label sim | permutation p-value | classifier CV accuracy | majority baseline |
-|---|---|---|---|---|---|---|
-| R7 | 473 | 0.557 | 0.494 | < 0.0005 | 54.1% | 44.7% |
-| R8 | 474 | 0.726 | 0.716 | 0.095 | 58.0% | 58.4% |
+- **R7:** 473 neurons; within-label similarity 0.557 versus between-label similarity 0.494, p < 0.0005. Cross-validated label prediction from connectivity reaches 54.1% accuracy against a 44.7% majority baseline.
+- **R8:** 474 neurons; within-label similarity 0.726 versus between-label similarity 0.716, p = 0.095. Classifier accuracy is 58.0% against a 58.4% majority baseline.
 
-**R7**: the wrong label carries real signal. Same-label neurons are significantly more similar in connectivity than different-label neurons (2000-permutation test, p < 0.0005), and a cross-validated classifier predicts the label from connectivity alone better than the majority-class baseline. This suggests the classifier's confusion for R7 is not arbitrary: it may be tracking real anatomical/wiring variation (consistent with documented R7 subtypes such as pale/yellow ommatidia, though this project does not have direct subtype labels in FAFB to confirm that specific correspondence).
+R7's transmitter predictions correlate with wiring variation. This is consistent with anatomical subtype structure, but the FAFB analysis lacks direct subtype labels to establish a particular correspondence. R8 shows no significant connectivity association in this test.
 
-**R8**: no such structure. Within- and between-label similarity are statistically indistinguishable (p = 0.095), and the classifier cannot beat baseline. R8's misprediction looks like noise, not signal.
+## Literature-supported correction lists
 
-Method: `connectivity_comparison.py` (profile construction, permutation test, classifier test), `connectivity_plots.py` (PCA visualization). Uses FAFB's Connections (Filtered) edge list, synapses filtered to >=5 per connection.
+The 21 name-matched candidates comprise **17 literature-supported types**, **1 contradicted type (Lai)**, and **3 unconfirmed types (Dm16, Dm20, Dm6)**. Each neuron-level correction includes the predicted transmitter, verified transmitter set, source citation, confidence, and proposed action.
 
-## Sensitivity check: lowering the cell-type size threshold to n>=10
+- `corrections/corrections_fafb.csv`: **5,387 neurons across 17 cell types**.
+- `corrections/corrections_mcns.csv`: **1 neuron, in Dm9**.
+- `corrections/excluded_unconfirmed_candidates.csv`: the four excluded or unconfirmed types.
+- `corrections/corrections_signature_scan_novel.csv`: the four additional cell-type findings from signature matching.
 
-The primary result above uses a minimum cell type size of 20 members, matching the original project spec. Re-running the full pipeline at a more permissive minimum of 10 members (702 cell types, vs. 402) is a robustness check that also nearly doubles coverage. Combined with the same MCNS-based validation strategy, generalized to catch any single-transmitter-confirmed FAFB type with elevated entropy (not just histamine-specific), this surfaced two additional systematic confusion patterns beyond the histamine blind spot, both involving categories the classifier *can* predict, so these are genuine confusion errors, not categorical gaps.
+R8 neurons predicted acetylcholine are excluded from corrections because both acetylcholine and histamine are verified. Lai is excluded because its MCNS histamine prediction conflicts with literature-verified glutamate.
 
-**Pattern 1: Categorical blind spot (histamine).** R7, R8, Lai, R1-6. Confirmed structural: HIST is not a predictable output category.
+**Dm9's evidence comes from direct literature sources:** Kind et al. (2021), *eLife*, [doi:10.7554/eLife.71858](https://doi.org/10.7554/eLife.71858), and Schnaitmann et al. (2024), *Frontiers in Molecular Neuroscience*, [doi:10.3389/fnmol.2024.1347540](https://doi.org/10.3389/fnmol.2024.1347540). These support glutamatergic signaling. All 179 FAFB Dm9 neurons have incompatible predictions (178 ACH, 1 GABA) and are proposed for correction to GLUT. Dm9 is absent from the project's `gt_data.csv` snapshot, so this evidence is recorded as a direct literature match.
 
-**Pattern 2: ORN serotonin confusion.** Of 53 ORN (olfactory receptor neuron) glomerulus types matched to MCNS, all 53 are confirmed cholinergic by MCNS (consistent with the well-established fact that all Drosophila ORNs are cholinergic), and 43 are correctly and cleanly predicted ACH by FAFB with near-zero entropy. But 10 specific glomerulus types (ORN_V, ORN_VM3, ORN_VA2, ORN_DA3, ORN_DA4m, ORN_DA4l, ORN_DM2, ORN_DM3, ORN_DL4, ORN_DL3) are instead predicted predominantly serotonergic. Serotonin is a valid output category for the classifier, so this is not a structural gap: it looks like genuine, glomerulus-specific classifier confusion.
+## Prioritizing manual review
 
-**Pattern 3: Dm glutamate confusion.** Of 13 Dm-numbered (distal medulla) cell types matched to MCNS and confirmed glutamatergic, only 6 are correctly predicted GLUT by FAFB. The other 7 (Dm12, Dm16, Dm20, Dm19, Dm1, Dm6, Dm9) are predicted predominantly GABA or ACH instead; roughly half of this cell-type family is systematically misclassified.
+`suspicion_score.py` ranks FAFB corrections using the classifier's confidence in its prediction (**E1**) and its probability support for the literature-verified answer (**E2**). E2 is available where the correct answer belongs to FAFB's six output categories.
 
-| Pattern | Flagged types | Denominator | True/confirmed NT | FAFB's wrong guess |
-|---|---|---|---|---|
-| Categorical blind spot | R7, R8, Lai, R1-6 | N/A | HIST (unpredictable) | GLUT / ACH / GABA |
-| ORN confusion | 10 | 53 ORN types checked | ACH | SER |
-| Dm confusion | 7 | 13 GLUT-confirmed Dm types | GLUT | GABA / ACH |
-
-Method: `general_scan_n10.py` (broad MCNS-based consistency check across all n>=10 FAFB types, catching any confirmed-consistent type with elevated FAFB entropy, not just histamine), `three_patterns_summary.py` (pattern extraction and categorization). Full results in `results/general_scan_n10_full.csv` and `results/three_confusion_patterns.csv`.
-
-Caveat: MCNS's own predictions are also a classifier output, not ground truth from wet-lab literature; treated here as a strong, independent cross-check rather than absolute truth, consistent with how R7/R8/Lai/R1-6 were validated above. Some flagged cell types have small FAFB sample sizes (n as low as 10-17), so these should be treated as candidates for further investigation, not settled conclusions.
-
-## Recalibrating the confusion-signature scan: fixing an 80% false-positive rate
-
-The confusion-signature scan's original calibration set one JS-divergence threshold per pattern from the seeds' own leave-one-out spread (`max(0.12, loo_max * 1.35)`). On the real, committed project data this is not a minor miscalibration: it flags **341 of 402 FAFB cell types (85%) as "in a confusion neighborhood" and 322 (80%) as "novel candidates."** The project's own unit tests independently caught two symptoms of this before any fix existed: a synthetic 100%-ACH type (nothing to explain) got flagged as a histamine-blindspot candidate anyway, and R7 failed to recover under its own pattern (it matched `Dm_GLUT_confusion` instead).
-
-**Root cause.** R1-6's own fingerprint (82% ACH) is not very distinctive on its own: ACh is the single most common FAFB prediction dataset-wide, so a threshold loose enough to keep R1-6 "in-family" (needed because R7 sits far from R8/R1-6 in the simplex and drags the shared threshold up) is loose enough to also catch almost any clean, ACh-dominant type with nothing to do with histamine. The median cell type in the *entire dataset* was already closer to the histamine fingerprint than the calibrated threshold.
-
-**The fix** (`signature_calibration.py`) replaces the fixed threshold with an exact permutation p-value. For a candidate cell type X and a pattern's seed set (size k, or k-1 under leave-one-out when X is itself a seed): take the ~385-400 *other* FAFB cell types that are not a seed of any pattern (the empirical population of "ordinary" cell-type profiles in this dataset) and ask what fraction of them are at least as close to X as the true seeds are. If a fraction `q_close` of them are, then for k independently, randomly chosen ordinary types instead of the true seeds,
-
+```text
+suspicion = E1 * (1 - E2)   when E2 is defined
+suspicion = E1              for categorical blind-spot cases
 ```
-p = P(at least one of k random types is at least that close) = 1 - (1 - q_close) ** k
-```
-
-This has an exact closed form (no simulation, no resolution floor to tune), uses `q_close` with add-one-half continuity correction so it doesn't collapse to a hard 0.0 or 1.0 at small reference-pool sizes, and, critically, compares each candidate against **other real cell types**, not synthetic noise. An earlier attempt used a parametric null (resample a same-sized group from the dataset's pooled NT-prediction rates, in the same style as the entropy screen's permutation null) and it does not work for this statistic: for even a moderately sized group, sampling noise around the *dataset average* shrinks quickly, so literally every specific point that is not the dataset average becomes "impossible by chance"; this under-flagged the true seeds (R7/R8/R1-6 all came back p&nbsp;≈&nbsp;1) and, symmetrically, over-flagged 117 unrelated types that merely leaned the same general direction as a seed. The dataset average is not a realistic stand-in for "an unremarkable fly cell type," because Dale's law means real types are clean in *some* direction; comparing against synthetic noise around the average answers "is this non-average," not "is this specifically seed-like." This is recorded in `signature_calibration.py`'s docstring so it isn't reinvented.
-
-**Result on the real data:**
-
-![Calibration before and after](figures/calibration_before_after.png)
-
-| | Original heuristic | Calibrated exact test |
-|---|---|---|
-| Flagged as novel candidate | 322/402 (80%) | 13/402 (3%) |
-| ORN cluster (k=10 active seeds) recovered | 10/10 (by construction: threshold set from these seeds' own spread) | 9/10 via simplex and/or entropy channel |
-| Dm cluster recovered | 3/3 (by construction) | 3/3 present in n>=20 table, via simplex |
-| Histamine family recovered | 4/4 (by construction) | R8 via simplex+entropy, R7 via entropy, R1-6 borderline (p~0.07, not formally significant; see above) |
-
-Note: this table reports the original heuristic-vs-calibrated comparison at n>=20 (402 types) to isolate the calibration fix's effect alone. With `results/entropy_raw_n10.csv` now available, `signature_scan.py` runs on the larger n>=10 dataset by default (702 types), currently flagging 28 novel candidates (4.0%), still a small, reviewable minority, not the 80% bug.
-
-These candidates were cross-checked against the same literature ground truth (`gt_data.csv`) used throughout this project (`build_signature_corrections.py`):
-
-| Verdict | Count | Cell types |
-|---|---|---|
-| Genuine correction (literature disagrees with FAFB's prediction) | 4 | **TmY16** (FAFB: GABA; literature: GLUT), **vDeltaA_b** (FAFB: SER; literature: ACH), **WEDPN6B** (FAFB: GLUT; literature: GABA), **hDeltaK** (FAFB: SER; literature: ACH) |
-| Already correctly predicted (geometrically near a fingerprint, but FAFB's own prediction already agrees with literature) | 3 | Mi15, ORN_DM5, PFGs |
-| No literature entry (unconfirmed) | 21 | see `corrections/signature_scan_novel_unconfirmed.csv` for the full list |
-
-Sources: hDeltaK and TmY16 both have direct entries in `gt_data.csv` (confidence 4, citing Wolff et al. 2024 and Nern et al. 2024 respectively, both EASI-FISH-based surveys); vDeltaA_b and WEDPN6B likewise resolve through the same database via `find_match`. All four came from the database directly, not a manual literature search, once `signature_scan.py` was re-run with real `gt_data.csv` in place, an earlier run (before that file was available) had left `gt_verified_nt` empty for all 28 novel candidates, which is why hDeltaK and TmY16 were originally treated as hand-confirmed exceptions; they never were.
-
-TmY16, vDeltaA_b, WEDPN6B, and hDeltaK are genuinely new findings, not previously in `three_confusion_patterns.csv`: none is an ORN or Dm-prefixed type the original MCNS name-matched scan could see, all four were found purely by simplex geometry and independently confirmed by literature. TmY16 and hDeltaK extend the two established confusion patterns beyond their original namesake cell-type families: the ACH-to-SER confusion is not limited to antennal-lobe ORNs, and the GLUT-to-GABA/ACH confusion is not limited to Dm neurons. WEDPN6B is a real correction (GLUT predicted, GABA verified) that doesn't cleanly fit either named pattern, its geometric pattern match disagrees with its own literature answer (`gt_agrees_with_pattern: False`), which is why it's flagged as a correction on the FAFB-vs-literature disagreement alone, not folded into either pattern's own membership count above. See `corrections/corrections_signature_scan_novel.csv` for the full record, kept separate from `corrections/corrections_fafb.csv` since these were found by a different method (geometry + an exact test, not cross-dataset name matching) and deserve independent provenance.
-
-**Dual-channel recovery.** R7 is a genuine geometric outlier *within its own seed family*: under leave-one-out, its wrongly-predicted profile (44% GLUT / 39% GABA / 15% ACH) is numerically closer to the unrelated `Dm_GLUT_confusion` seeds than to R8/R1-6, a real fact about the simplex, not a bug (its raw JS distance to the Dm seeds, 0.10, actually beats its distance to R8/R1-6, 0.18). But R7 was never a hard case in the first place: it is one of the largest entropy z-score outliers in the whole dataset (z=7.8), already caught by the project's original, established channel. `entropy_channel.py` reconstructs that channel's exact permutation p/q-values from the committed, aggregated entropy table alone (no raw per-neuron table needed: a group's category counts under the existing permutation scheme are marginally an exact multivariate-hypergeometric draw from the dataset-wide pooled counts, a standard fact about random partitions, so this is a faithful reconstruction, not an approximation; validated directly against this project's own real z-scores, correlation 0.999). `recovery_report` checks both channels and reports which one(s) actually caught each seed; nothing recovers silently, and R1-6's honestly borderline geometric result is reported as exactly that rather than forced into a clean pass.
-
-Run `python signature_scan.py` to reproduce; `python build_signature_corrections.py` for the literature cross-check.
-
-## Deliverable: correction lists validated against literature ground truth
-
-Every candidate above was cross-checked against the literature-curated ground truth database ([flyconnectome/drosophila_neurotransmitters](https://github.com/flyconnectome/drosophila_neurotransmitters), `gt_data.csv`), which links cell types to verified neurotransmitters from published sources with confidence scores. This is authoritative in a way MCNS's predictions are not, since MCNS's classifier can itself be wrong.
-
-**Cell type name matching.** Different datasets name the same cell type differently (e.g. FAFB's `R1-6` vs. MCNS's `R1-R6`). `name_matching.py` handles this safely: exact case/whitespace-insensitive matches, plus an explicit range-notation normalizer for the `X1-6` / `X1-X6` pattern. Anything that isn't a safe match is left unmatched rather than guessed at, since a wrong automated match could produce a wrong correction. R7/R8's split into MCNS subtypes (`R7y`, `R7p`, `R7d`, etc.) is handled as an explicit, documented aggregation rather than a generic prefix rule, to avoid incorrectly conflating e.g. `Dm1` with `Dm12`/`Dm19`.
-
-**Result of literature cross-check** (`validate_against_literature.py`, `results/literature_validated_candidates.csv`):
-
-| Outcome | Count | Cell types |
-|---|---|---|
-| Confirmed by literature | 17 | R7, R8, R1-6, 10 ORN types, Dm12, Dm19, Dm1, Dm9 |
-| Contradicted by literature (excluded) | 1 | Lai (MCNS said histamine; literature/Davis et al. 2020 verifies glutamate, confidence 4/5) |
-| No literature match (unconfirmed, not corrected) | 3 | Dm16, Dm20, Dm6 |
-
-**R1-6 is confirmed through this table too**, the same route as R7 and R8: `validate_against_literature.py` matches it by exact name against the ground-truth database directly (`matched_with_verified_nt`, HIST, confidence 4.0), not a special case.
-
-The Lai exclusion is a real finding in its own right: MCNS's own classifier appears to be wrong for this specific type, which is exactly the kind of error this literature cross-check is designed to catch before it turns into a bad correction.
-
-R8 is confirmed as a genuine co-transmitter (ACH **and** histamine both verified present, matching Xiao et al. 2023's finding independently), so R8 neurons already predicted ACH are not flagged as wrong, only the ones predicted something else.
-
-**Dm9, added via direct literature search.** The curated ground-truth aggregator has real gaps in Dm-family coverage (only 12 of 22 Dm-numbered FAFB types have any entry at all). Dm9 was one of the 10 missing, so it was initially left unconfirmed. A direct search of the primary literature found two independent sources: Kind et al., 2021, eLife (doi:10.7554/eLife.71858), stating Dm9 is glutamatergic citing Davis et al. 2020, and Schnaitmann et al., 2024, Frontiers in Molecular Neuroscience (doi:10.3389/fnmol.2024.1347540), with direct physiological evidence of glutamate release from Dm9. FAFB predicts Dm9 wrong for all 179 of its neurons (178 ACH, 1 GABA); all 179 are corrected to GLUT. Dm9 is now in the correction list; the remaining 3 unconfirmed types (Dm16, Dm20, Dm6) did not turn up conclusive evidence after the same search approach and remain unconfirmed, not silently dropped.
-
-TmY16, vDeltaA_b, WEDPN6B, and hDeltaK were also found to need correction, via the confusion-signature scan rather than this name-matched pipeline; see "Recalibrating the confusion-signature scan" above and `corrections/corrections_signature_scan_novel.csv` for that record, kept separate for the reason explained there.
-
-**Final correction lists** (`corrections/corrections_fafb.csv`, `corrections/corrections_mcns.csv`): one row per neuron whose current prediction doesn't match the literature-verified transmitter(s), with the source citation, confidence score, and proposed action attached.
-
-| Dataset | Neurons flagged | Cell types covered |
-|---|---|---|
-| FAFB | 5,387 | 17 |
-| MCNS | 1 | 1 (Dm9) |
-
-`corrections/excluded_unconfirmed_candidates.csv` lists the 4 excluded/unconfirmed types for transparency, so nothing is silently dropped.
-
-The confusion-signature scan's own literature-confirmed corrections (`corrections/corrections_signature_scan_novel.csv`, 4 cell types: TmY16, vDeltaA_b, WEDPN6B, hDeltaK) are kept separate from the two tables above since they were found by geometry, not cross-dataset name matching; see "Recalibrating the confusion-signature scan" above for the full record including near-misses and unconfirmed candidates.
-
-## Prioritizing corrections: a per-neuron suspicion score
-
-Not every flagged neuron is an equally clear-cut error. `suspicion_score.py` ranks the FAFB corrections using two directly-measured quantities: **E1**, the classifier's own confidence (`nt_type_score`) in the wrong prediction, and **E2**, how much probability mass FAFB's per-category averages (`ach_avg`, `glut_avg`, etc.) assigned to the literature-verified correct answer, computable only where that answer is one of FAFB's 6 output categories, marked `N/A` for the categorical blind-spot cases (R7, R8, R1-6) since the math is structurally undefined there, not just missing.
-
-Composite: `suspicion = E1 * (1 - E2)` where E2 is defined, `suspicion = E1` otherwise. This is a transparent product of two measured quantities, not a tuned weighted sum; there's no labeled validation set to tune weights against.
 
 ![Suspicion score](figures/suspicion_score.png)
 
-The top-ranked cases are the clearest starting point for manual review: e.g. ORN_DL3 neurons the classifier is 90%+ confident are serotonergic, while acetylcholine (the literature-verified answer) gets only a few percent support. `suspicion_score_mcns.py` applies the same idea to MCNS's 1 correction, using E1 only since MCNS's export doesn't expose a per-category probability breakdown the way FAFB's does. `suspicion_score_plot.py` generates the figure above.
+High scores identify confident predictions with little support for the verified answer. For example, some ORN_DL3 neurons have greater than 90% confidence in serotonin while acetylcholine receives only a few percent support. MCNS scores use E1 alone because its export lacks per-category probabilities.
 
-Caveat, stated plainly: categorical blind-spot cases (E1 only) score higher on average (mean 0.53, n=4,564) than the full E1xE2 cases (mean 0.44, n=823) partly as a formula artifact, not because they're necessarily worse errors. The `score_type` column marks which formula applies to each row so this is never hidden.
+The score is a review priority, not a calibrated probability of error. The 4,564 categorical blind-spot cases average 0.53, while the 823 full-formula cases average 0.44; part of this difference follows from the formulas themselves. The `score_type` column identifies the formula used for each row.
 
-Run order: `python suspicion_score.py` then `python suspicion_score_mcns.py` then `python suspicion_score_plot.py`, after `corrections/corrections_fafb.csv` and `corrections/corrections_mcns.csv` already exist. Outputs: `corrections/corrections_fafb_scored.csv`, `corrections/corrections_mcns_scored.csv`, `figures/suspicion_score.png`.
+Outputs are `corrections/corrections_fafb_scored.csv` and `corrections/corrections_mcns_scored.csv`.
 
+## Reference
 
-## Data source
+Eckstein, N. et al. *Neurotransmitter classification from electron microscopy images at synaptic sites in Drosophila melanogaster.* Cell (2024). [doi:10.1016/j.cell.2024.03.016](https://doi.org/10.1016/j.cell.2024.03.016).
 
-FlyWire Codex (codex.flywire.ai), FAFB v783 and MCNS v1.0. See [FlyWire citation guidelines](https://codex.flywire.ai) for attribution requirements.
-
-## Key reference
-
-Eckstein, N. et al. Neurotransmitter classification from electron microscopy images at synaptic sites in Drosophila melanogaster. *Cell* (2024). doi:10.1016/j.cell.2024.03.016; explicitly lists histamine as an unsolved prediction target, consistent with this project's finding.
-
-corrections_fafb_scored.csv and corrections_mcns_scored.csv rank every correction by a suspicion score combining classifier confidence (E1) with evidence against the correct answer (E2, where computable). See suspicion_score.py / suspicion_score_mcns.py.
-
-Final count: 5,387 FAFB corrections across 17 cell types, plus 1 MCNS correction, all literature-confirmed via `gt_data.csv`. Separately, the confusion-signature scan contributes 4 more corrections (TmY16, vDeltaA_b, WEDPN6B, hDeltaK) via a different method; see "Deliverable" above for why these are kept apart. 25/25 `validate_results.py` checks pass; `tests/test_core.py` passes in full (41/41 at time of writing). See CHANGELOG for how this project's numbers evolved to reach this state.
+Data: FlyWire Codex, FAFB v783 and MCNS v1.0. See [FlyWire Codex](https://codex.flywire.ai) for dataset access and citation guidance.

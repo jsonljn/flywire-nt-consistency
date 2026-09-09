@@ -56,7 +56,7 @@ if ENTROPY_CORRECTED.exists():
         )
         r7 = ec[ec["cell_type"] == "R7"].iloc[0]
         check(
-            "R7 z-score ~7.8",
+            "R7 z-score within expected range",
             7.5 < r7["z_score"] < 8.1,
             f"z={r7['z_score']:.2f}",
         )
@@ -131,14 +131,9 @@ if SIGNATURE_SCAN.exists():
     ss = pd.read_csv(SIGNATURE_SCAN)
     r16 = ss[ss["cell_type"] == "R1-6"]
     check("Signature scan includes R1-6", len(r16) == 1)
-    # R1-6 is the case the entropy screen structurally cannot see (its
-    # z-score is strongly negative -- confidently *consistent*, not
-    # inconsistent). It must stay in this table and stay notably closer to
-    # the histamine seeds than an average type, even though the honestly
-    # calibrated exact test finds that closeness borderline rather than a
-    # clean pass (p~0.066 on this real data -- see CHANGELOG.md and
-    # signature_calibration.py's docstring for why forcing a "recovered"
-    # claim here would not be honest).
+    # R1-6 has a negative entropy z-score but is geometrically close to
+    # histamine seeds. Check this relative distance without requiring formal
+    # significance from its borderline calibrated result.
     if len(r16):
         check(
             "R1-6 notably closer to histamine seeds than the dataset median",
@@ -159,19 +154,16 @@ if SIGNATURE_SCAN.exists():
         f"{report['Dm_GLUT_confusion']['n_recovered']}/{report['Dm_GLUT_confusion']['n_seeds']}",
     )
 
-    # Direct regression guard for the original bug this project's own unit
-    # tests caught: a pooled, outlier-inflated threshold flagged 322/402
-    # (80%) of all real FAFB cell types as "novel." The calibrated exact
-    # test must keep this to a small, reviewable minority.
+    # Candidate prevalence should remain a small fraction of scored types.
     novel_fraction = ss["is_novel_candidate"].mean()
     check(
-        "Novel-candidate fraction is a small, reviewable minority (not the 80% bug, not zero)",
+        "Novel-candidate fraction is between 1% and 15%",
         0.01 < novel_fraction < 0.15,
         f"{novel_fraction:.1%} ({int(ss['is_novel_candidate'].sum())}/{len(ss)})",
     )
 if CONFIRMED_HISTAMINERGIC_SUMMARY.exists():
     ch = pd.read_csv(CONFIRMED_HISTAMINERGIC_SUMMARY)
-    check("4 confirmed histaminergic types", len(ch) == 4, f"got {len(ch)}")
+    check("4 MCNS histamine comparison types", len(ch) == 4, f"got {len(ch)}")
     check("Includes R1-6", "R1-6" in ch["cell_type"].values)
 
 # ── Write report ──

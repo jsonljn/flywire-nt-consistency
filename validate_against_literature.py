@@ -84,9 +84,9 @@ def match_against_gt(cell_type_name):
 # Load all flagged candidates from prior analysis (both n>=20 and n>=10 runs)
 # ─────────────────────────────────────────────
 
-print("\nLoading previously flagged candidates...")
+print("\nLoading screening candidates...")
 pattern_flagged = pd.read_csv(THREE_PATTERNS)
-print(f"  {len(pattern_flagged)} previously flagged FAFB cell types (histamine blindspot + ORN + Dm patterns)")
+print(f"  {len(pattern_flagged)} screening FAFB cell types (histamine blindspot + ORN + Dm patterns)")
 
 # ─────────────────────────────────────────────
 # Cross-check every flagged type against literature ground truth

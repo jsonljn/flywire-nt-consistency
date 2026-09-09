@@ -1,48 +1,30 @@
 """
-Confusion-signature scan.
+Compare FAFB transmitter profiles with literature-confirmed confusion signatures.
 
-Entropy is a scalar: it detects *that* a cell type is inconsistent, but not
-*why*, and it systematically misses large types that are consistently assigned
-the *wrong* transmitter (R1-6: 82% ACH, z = -16, yet canonically
-histaminergic).
+Each cell type is represented as a probability vector over FAFB's six output
+categories and scored against histamine, ORN serotonin, and Dm glutamate
+seed profiles. This supports candidate discovery beyond MCNS name matches.
 
-This module treats each cell type as a point on the 6-simplex of FAFB
-classifier outputs and scores it against literature-confirmed confusion
-fingerprints. That recovers the original three patterns *without
-name-matching to MCNS*, and surfaces additional types that sit in the same
-simplex neighborhoods — candidates the name-matched scan could never see.
+CALIBRATION
+-----------
+Membership (in_neighborhood / is_novel_candidate / best_pattern) uses
+signature_calibration.py's exact reference-pool p-value. The scan reports
+within-pattern BH q-values and fixed-threshold heuristic columns, identified
+by the _heuristic suffix, for method comparison. Heuristic columns do not
+determine candidate membership.
 
-CALIBRATION -- read this before trusting a number out of this file
---------------------------------------------------------------------
-Membership ("in_neighborhood" / "is_novel_candidate" / "best_pattern") is
-decided by `signature_calibration.py`'s exact permutation p-value against an
-empirical reference-pool null, not by a fixed JS-divergence threshold. See
-that module's docstring for why and how: the earlier fixed-threshold
-heuristic flagged 80% of all FAFB cell types (322/402) as "novel candidates"
-on the real project data, which the project's own unit tests independently
-caught as wrong (a synthetic 100%-ACH type has nothing to do with histamine,
-and got flagged anyway). The old heuristic's numbers are still computed and
-kept in this file's output under an explicit `_heuristic` suffix, purely so
-the fix is auditable side-by-side with what shipped before.
+RECOVERY CHANNELS
+-----------------
+recovery_report evaluates both signature matching and entropy significance,
+recording the channel for each recovered seed in recovered_via. R1-6 and
+Dm12/Dm1 have negative entropy z-scores, so their evidence depends on geometry
+and independent transmitter validation. R1-6's geometric evidence is
+suggestive rather than formally significant. R7 is an entropy outlier whose
+leave-one-out geometry is closer to Dm seeds than to its histamine family.
 
-DUAL-CHANNEL RECOVERY
-----------------------
-R1-6 (and, on real data, Dm12/Dm1) are only reachable through simplex
-geometry: their entropy z-scores are negative (unusually *consistent*, not
-inconsistent), which the entropy screen structurally cannot flag -- that
-blind spot is the entire reason this module exists. R7 is close to the
-opposite case: its predicted-NT profile is a genuine outlier *within its own
-seed family* (nearer, under leave-one-out, to the unrelated Dm_GLUT_confusion
-seeds than to R8/R1-6 -- a real geometric fact, not a bug), so simplex
-matching alone is not reliable for it. But R7 was never a hard case in the
-first place: it is one of the largest entropy z-score outliers in the entire
-dataset, already caught by the project's existing, established channel.
-`recovery_report` checks both channels and reports which one(s) actually
-caught each seed (`recovered_via`) -- nothing recovers silently. The entropy
-channel's q-value here is reconstructed exactly (not approximated) from the
-committed entropy table via `entropy_channel.py`; see that module for why an
-exact reconstruction is possible without the raw per-neuron table, and its
-validation against this project's own real z-scores.
+entropy_channel.py estimates entropy significance from aggregated category
+counts using multivariate-hypergeometric sampling, allowing recovery checks
+without the raw per-neuron annotation table.
 """
 from __future__ import annotations
 
@@ -87,7 +69,7 @@ PATTERN_SEEDS = {
     "Dm_GLUT_confusion": DM_SEEDS,
 }
 
-# Legacy heuristic, kept only for side-by-side comparison -- see module docstring.
+# Fixed-threshold heuristic for method comparison only.
 JS_FLOOR = 0.12
 LOO_MARGIN = 1.35
 
@@ -126,7 +108,7 @@ def nearest_seed_js(
 
 
 def _legacy_heuristic_columns(df: pd.DataFrame, lookup: dict[str, np.ndarray]) -> pd.DataFrame:
-    """As-shipped fixed-threshold heuristic. Kept for comparison only -- see module docstring."""
+    """Compute fixed-threshold heuristic columns for method comparison only."""
     loo_max: dict[str, float] = {}
     for pattern, seeds in PATTERN_SEEDS.items():
         dists = []
@@ -355,7 +337,7 @@ def run_scan() -> pd.DataFrame:
 
     thresholds = scored.attrs.get("thresholds", {})
     loo_max = scored.attrs.get("loo_max", {})
-    print("\n[legacy heuristic, kept for comparison only] LOO max and thresholds:")
+    print("\n[fixed-threshold heuristic, for method comparison] LOO max and thresholds:")
     for pattern in PATTERN_SEEDS:
         print(
             f"  {pattern}: LOO max = {loo_max.get(pattern, float('nan')):.4f}  "
@@ -364,7 +346,7 @@ def run_scan() -> pd.DataFrame:
     n_heuristic = int(scored["in_neighborhood_heuristic"].sum())
     n_calibrated = int(scored["in_neighborhood"].sum())
     print(
-        f"\n'In neighborhood' under legacy heuristic: {n_heuristic}/{len(scored)} "
+        f"\n'In neighborhood' under fixed-threshold heuristic: {n_heuristic}/{len(scored)} "
         f"({n_heuristic / len(scored):.0%})"
     )
     print(

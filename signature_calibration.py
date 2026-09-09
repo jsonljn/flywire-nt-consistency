@@ -1,106 +1,37 @@
 """
-Statistically calibrated significance test for the confusion-signature scan.
+Statistically calibrated significance test for confusion-signature matching.
 
-THE ORIGINAL PROBLEM
----------------------
-signature_scan.py's original calibration set one JS-divergence threshold per
-pattern from the seeds' own leave-one-out (LOO) spread:
+For candidate X and a pattern with k available seeds (excluding X under
+leave-one-out), measure X's Jensen-Shannon divergence to its nearest seed.
+Compare that distance with X's distances to other non-seed cell types.
+If i_obs of M reference types are at least as close, use the continuity-
+corrected fraction q_close = (i_obs + 0.5) / (M + 1). For k independent
+random reference draws, the probability of at least one equally close match is:
 
-    threshold = max(JS_FLOOR, loo_max * LOO_MARGIN)
+    p = 1 - (1 - q_close) ** k
 
-This is fragile whenever a pattern's seeds are not tightly clustered. The
-histamine-blindspot family is exactly that case: R7 (44% GLUT / 39% GABA /
-15% ACH) and R1-6 (82% ACH) sit far apart in the 6-simplex -- they share a
-*cause* (histamine is not a predictable FAFB output category) but not a
-*shape*. R7's poor fit to {R8, R1-6} drags the calibration up, and because
-ACh is the single most common FAFB prediction dataset-wide, "loose enough to
-include R1-6's 82%-ACH profile" turns out loose enough to include almost any
-clean, ACh-dominant type that has nothing to do with histamine. On the real,
-committed project data (results/entropy_raw.csv, 402 FAFB cell types) this
-flags 341/402 (85%) of *all* cell types as "in a confusion neighborhood."
-The project's own unit tests independently caught two symptoms of this:
-tests/test_core.py::test_clean_type_is_not_a_novel_candidate (a synthetic
-100%-ACH type, nothing to explain, got flagged anyway) and
-test_recovers_histamine_seeds (R7 did not recover under its own pattern).
+The reference pool represents the diversity of real cell-type profiles.
+Sampling around pooled transmitter frequencies instead concentrates near
+the dataset average, which is not representative of the many real types
+with a strongly dominant transmitter. Likewise, a shared distance threshold
+can include unrelated acetylcholine-dominant types when seeds are dispersed.
+R7 and R1-6 illustrate this: both have verified histamine signaling, but their
+FAFB prediction profiles differ substantially.
 
-A FIRST FIX ATTEMPT THAT DID NOT WORK, KEPT HERE AS A NOTE
-------------------------------------------------------------
-The obvious statistical fix is a permutation null in the style of
-analysis.py's `stratified_permutation_null`: for a cell type of size n, draw
-many same-sized random groups from the dataset's pooled NT-prediction rates
-and see how close such an unstructured group lands to a pattern's seeds by
-chance. That was implemented and measured against the real data -- and it is
-*wrong* in a way worth recording so it is not reinvented. For even a
-moderately sized group, sampling noise around the *dataset average* shrinks
-quickly, so literally every specific point that is not the dataset average
-becomes "impossible by chance" -- including the true seeds (R7/R8/R1-6 all
-came back p approx. 1, i.e. now *under*-flagged) and, symmetrically, every
-other clean type whose dominant category happens to lean the same general
-direction as a seed (117 unrelated types tied at the same near-zero q-value
-for the Dm pattern, i.e. *over*-flagged again, just via a different route).
-The dataset average is not a realistic stand-in for "an unremarkable fly cell
-type" -- essentially no real cell type looks like the average, because Dale's
-law means real types are clean in *some* direction. Comparing against
-synthetic noise around the average therefore answers "is this non-average,"
-not "is this specifically seed-like," and rejects almost everything for
-large n regardless of direction.
+Reference-pool size limits significance resolution. Without continuity
+correction, no close matches in a small pool would force p=0; with correction,
+a small pool can lack power even for close seed matches. Tests use reference
+pools appropriate to their seed counts. These limits apply to interpretation
+of the reported evidence as well as to synthetic test fixtures.
 
-THE ACTUAL FIX
----------------
-Compare each candidate against *other real cell types*, not synthetic noise.
-For candidate X and a pattern with seed set S (size k, or k-1 under leave-
-one-out when X is itself a seed):
-
-  1. observed = X's JS distance to its nearest seed in S.
-  2. Take the ~385-400 *other* FAFB cell types that are not a seed of any
-     pattern -- the empirical population of "ordinary" cell-type profiles in
-     this dataset -- and compute X's JS distance to each of them once.
-  3. Ask: if we swapped S for k independently, randomly chosen ordinary cell
-     types instead, what is the probability that at least one of those k
-     random types would be at least as close to X as the true seeds are?
-
-Step 3 has an exact closed form (no simulation, no resolution floor to tune):
-if a fraction q_close of the M ordinary types are at least as close to X as
-`observed`, then for k independent random draws,
-
-    p = P(at least one of k draws is that close) = 1 - (1 - q_close) ** k
-
-q_close uses add-one-half continuity correction, (i_obs + 0.5) / (M + 1),
-not the raw i_obs / M -- see `exact_p_value` for why (short version: at the
-project's real reference-pool size, M ~ 385-400, this changes nothing; it
-only matters, and matters a lot, at small M).
-
-CAVEAT: THIS NEEDS A REASONABLY LARGE REFERENCE POOL
--------------------------------------------------------
-This test's resolution is fundamentally limited by M, the number of ordinary
-cell types available for comparison. On the real project data M ~ 385-400,
-which is plenty. But a small M breaks the test in *both* directions at once,
-not just one -- this was found empirically while building tests for this
-module (see tests/test_core.py's fixture size) and is worth stating plainly
-rather than leaving implicit:
-  - Without the continuity correction, small M makes the test *overconfident*:
-    with M=3, i_obs=0 forces p=0.0 exactly (something no real reference point
-    was as close as), which reads as "impossible by chance" when it's really
-    just "we only checked 3 things."
-  - With the continuity correction, small M instead makes the test
-    *underpowered*: even the true seeds testing against each other can fail
-    to reach significance, because q_close can't get much below ~1/M no
-    matter how genuinely close the match is.
-There is no threshold-free fix for this -- it is a real statement about how
-much evidence a comparison against M things can provide, not a bug. Tests
-of this module accordingly use a reference pool of realistic size (~20+),
-not a handful of seeds plus one or two decoys, so they exercise the regime
-this method is actually meant for.
-
-This is the same "how surprising is this, given chance alone" logic as the
-project's existing permutation tests, just built from the dataset's own real
-diversity of cell-type shapes instead of a parametric resampling model that
-turns out to have no realistic cell type near it. Benjamini-Hochberg FDR
-correction (reusing analysis.py's implementation) is applied within each
-pattern's own family of tests. `best_pattern` is chosen by smallest q-value,
-not smallest raw distance, which is what fixes the R7 mis-assignment: raw
-distance is not comparable across pattern families with different seed
-spreads, but a p-value computed the same way for every pattern is.
+Benjamini-Hochberg q-values are reported within each pattern's family of
+tests. Candidate selection uses raw p < 0.05, followed by independent
+literature validation; q-values provide a stricter evidence measure.
+The best pattern is selected by smallest p-value, with q-value and observed
+distance as tie breakers. Raw distances alone are not comparable across
+patterns with different seed spreads. Entropy significance provides a
+complementary channel for types such as R7 whose geometry does not reliably
+identify their literature-supported pattern.
 """
 from __future__ import annotations
 
@@ -135,7 +66,7 @@ def exact_p_value(observed: float, pool_distances: np.ndarray, k: int) -> tuple[
     chance," and the uncorrected version does exactly that).
 
     Returns (p_value, i_obs, M) where i_obs/M is the raw (uncorrected)
-    fraction, for transparency/debugging.
+    fraction, for inspection of the reference-pool calibration.
     """
     M = len(pool_distances)
     if M == 0:
@@ -223,7 +154,7 @@ def summarize_best_pattern(long_df: pd.DataFrame, alpha: float = ALPHA) -> pd.Da
         p-value described in this module's docstring. This is the primary,
         reported tier -- appropriate for a candidate-generating screen with
         very low prevalence (a handful of true members among ~400 tests per
-        pattern), the same regime the original name-matched three-pattern
+        pattern), the same regime the name-matched three-pattern
         scan already operates in before its own literature cross-check.
       - `best_q_calibrated` (BH-corrected within each pattern's family of
         ~400 tests): kept for full transparency, but at this prevalence and
@@ -231,14 +162,10 @@ def summarize_best_pattern(long_df: pd.DataFrame, alpha: float = ALPHA) -> pd.Da
         seeds themselves mostly do not survive it (see module docstring) --
         so it is reported, not used to gate anything.
 
-    best_pattern is chosen by smallest p-value, which is what fixes the
-    original R7 mis-assignment bug: raw JS distance is not comparable across
-    pattern families with different seed spreads, but a p-value computed the
-    same way for every pattern is. Note this does not "solve" R7 itself --
-    R7's geometric nearest match is genuinely Dm_GLUT_confusion, not its own
-    family, under leave-one-out (p=0.03 vs p=0.11). That is a real, reported
-    limit of geometry-only matching for this specific type, not a bug; see
-    README.
+    best_pattern is chosen by smallest p-value because raw JS distances
+    are not comparable across pattern families with different seed spreads.
+    R7 can still match Dm_GLUT_confusion under leave-one-out; entropy provides
+    complementary evidence for its histamine classification (see README).
     """
     wide_q = long_df.pivot(index="cell_type", columns="pattern", values="q_value")
     wide_q.columns = [f"q_{c}" for c in wide_q.columns]
